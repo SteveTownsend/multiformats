@@ -7,8 +7,11 @@
 #pragma once
 
 #include <algorithm>
+#include <stdexcept>
 #include <type_traits>
 #include <vector>
+
+#include <cstdint>
 
 class Varint {
     static constexpr auto max_bits = 63;
@@ -18,16 +21,17 @@ class Varint {
 
   public:
     template <typename Integral,
-              typename = std::enable_if_t<std::is_signed_v<Integral> &&
-                                          std::is_integral_v<Integral>>>
+              typename = std::enable_if_t<std::is_integral_v<Integral>>>
     Varint(Integral integral) {
-        if constexpr (std::numeric_limits<Integral>::digits > max_bits)
-            if (integral > max)
-                throw std::runtime_error(
-                    "value is too large to store in a varint");
+        if constexpr (std::numeric_limits<Integral>::digits > max_bits) {
+            if (integral > max || integral < 0) {
+                throw std::runtime_error("invalid value");
+            }
+        }
 
         do {
-            buf.emplace(integral & 0xef);
+            std::uint8_t value = integral & 0xef;
+            buf.emplace_back(value);
             integral = integral >> 7;
         } while (integral);
 

@@ -12,7 +12,7 @@ class MultiformatsConan(ConanFile):
     topics = ("<Put some tag here>", "<here>", "<and here>")
     settings = "os", "compiler", "build_type", "arch"
     generators = "cmake"
-    export_sources = "*"
+    exports_sources = "*"
 
     def build(self):
         cmake = CMake(self)
