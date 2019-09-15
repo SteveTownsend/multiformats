@@ -11,7 +11,7 @@ build:
     # Download dependencies, build, test and create package
     - conan create . user/channel
 
-image: conanio/clang8-x64
+image: conanio/clang8
 
 build:
   before_script:
@@ -22,4 +22,4 @@ build:
 
   script:
     # Download dependencies, build, test and create package
-    - conan create . user/channel
+    - conan create . matt1795/testing
