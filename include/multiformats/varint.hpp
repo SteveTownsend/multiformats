@@ -42,6 +42,9 @@ class Varint {
         std::reverse(buf.begin(), buf.end());
     }
 
+    template <typename Iterator>
+    Varint(Iterator first, Iterator last) {}
+
     bool operator==(Varint const& varint) {
         return std::equal(buf.cbegin(), buf.cend(), varint.buf.cbegin(),
                           varint.buf.cend());
