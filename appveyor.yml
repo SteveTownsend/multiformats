@@ -2,7 +2,6 @@
   branches:
     only:
       - /testing\/.*/
-    build: false
 
     environment:
         PYTHON: "C:\\Python37"
@@ -37,7 +36,6 @@
   branches:
     only:
       - /stable\/.*/
-    build: false
 
     environment:
         PYTHON: "C:\\Python37"
@@ -69,8 +67,6 @@
       - conan upload %CONAN_REFERENCE%@%CONAN_USERNAME%/testing -r %REMOTE_NAME%
 
 -
-  build: false
-
   environment:
     PYTHON: "C:\\Python37"
 
