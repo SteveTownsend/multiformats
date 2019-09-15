@@ -4,6 +4,7 @@ variables:
     CONAN_REFERENCE: "multiformats/0.1"
     CONAN_CHANNEL: "testing"
     CONAN_LOGIN_USERNAME: "matt1795"
+    CONAN_UPLOAD: "https://api.bintray.com/conan/matt1795/public-conan"
 
 .build-template: &build-template
     before_script:

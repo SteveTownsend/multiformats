@@ -4,9 +4,10 @@ environment:
     PYTHON: "C:\\Python37"
 
     CONAN_REFERENCE: "multiformats/0.1"
-    CONAN_USERNAME: "matt1795"
+    CONAN_USERNAME: "user"
     CONAN_LOGIN_USERNAME: "matt1795"
     CONAN_CHANNEL: "testing"
+    CONAN_UPLOAD: "https://api.bintray.com/conan/matt1795/public-conan"
 
     matrix:
         - APPVEYOR_BUILD_WORKER_IMAGE: Visual Studio 2015
