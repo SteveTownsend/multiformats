@@ -13,7 +13,6 @@ variables:
         - conan user -p $CONAN_PASSWORD -r $REMOTE_NAME $CONAN_USERNAME
         - conan --version
     script:
-        - python build.py
         - conan create . $CONAN_USERNAME/$CONAN_CHANNEL
         - conan upload $CONAN_REFERENCE@$CONAN_USERNAME/$CONAN_CHANNEL -r $REMOTE_NAME
 
