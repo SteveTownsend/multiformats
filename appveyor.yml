@@ -25,23 +25,24 @@ install:
   - conan --version
 
 build_script:
-- conan create . %CONAN_USERNAME%/testing
+  - conan create . %CONAN_USERNAME%/testing
 
 for:
 -
   branches:
     only:
       - /testing\/.*/
+  build_script:
+    - conan create . %CONAN_USERNAME%/testing
+    - conan upload %CONAN_REFERENCE%@%CONAN_USERNAME%/testing -r %REMOTE_NAME%
 
-    on_success:
-      - conan upload %CONAN_REFERENCE%@%CONAN_USERNAME%/testing -r %REMOTE_NAME%
+
 
 -
   branches:
     only:
       - /stable\/.*/
+  build_script:
+    - conan create . %CONAN_USERNAME%/stable
+    - conan upload %CONAN_REFERENCE%@%CONAN_USERNAME%/stable -r %REMOTE_NAME%
 
-    build_script:
-      - conan create . %CONAN_USERNAME%/stable
-    on_success:
-      - conan upload %CONAN_REFERENCE%@%CONAN_USERNAME%/stable -r %REMOTE_NAME%
