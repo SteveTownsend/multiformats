@@ -42,8 +42,16 @@ class Varint {
         std::reverse(buf.begin(), buf.end());
     }
 
-    template <typename Iterator>
-    Varint(Iterator first, Iterator last) {}
+    template <typename Iterator,
+              typename = std::enable_if_t<
+                  sizeof(typename Iterator::value_type) == 1 &&
+                  std::is_integral_v<typename Iterator::value_type>>>
+    Varint(Iterator first, Iterator last) {
+        /*
+        for (; first != last && first & 0x80; ++first)
+            buf.emplace_back(*first
+*/
+    }
 
     bool operator==(Varint const& varint) {
         return std::equal(buf.cbegin(), buf.cend(), varint.buf.cbegin(),

@@ -26,7 +26,6 @@ install:
   - conan user -p %CONAN_PASSWORD% -r %REMOTE_NAME% %CONAN_USERNAME%
   - conan --version
 
-
 build_script:
   - conan create . %CONAN_USERNAME%/%CONAN_CHANNEL%
 
