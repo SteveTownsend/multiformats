@@ -1,24 +1,25 @@
+build: false
+
+environment:
+  PYTHON: "C:\\Python37"
+
+  CONAN_REFERENCE: "multiformats/0.1"
+  CONAN_USERNAME: "matt1795"
+  CONAN_UPLOAD: "https://api.bintray.com/conan/matt1795/public-conan"
+  REMOTE_NAME: "remote"
+
+matrix:
+  - APPVEYOR_BUILD_WORKER_IMAGE: Visual Studio 2015
+    CONAN_VISUAL_VERSIONS: 12
+  - APPVEYOR_BUILD_WORKER_IMAGE: Visual Studio 2015
+    CONAN_VISUAL_VERSIONS: 14
+  - APPVEYOR_BUILD_WORKER_IMAGE: Visual Studio 2017
+    CONAN_VISUAL_VERSIONS: 15
+
 -
   branches:
     only:
       - /testing\/.*/
-
-    environment:
-        PYTHON: "C:\\Python37"
-
-        CONAN_REFERENCE: "multiformats/0.1"
-        CONAN_USERNAME: "matt1795"
-        CONAN_UPLOAD: "https://api.bintray.com/conan/matt1795/public-conan"
-        CONAN_CHANNEL: "testing"
-        REMOTE_NAME: "remote"
-
-        matrix:
-            - APPVEYOR_BUILD_WORKER_IMAGE: Visual Studio 2015
-              CONAN_VISUAL_VERSIONS: 12
-            - APPVEYOR_BUILD_WORKER_IMAGE: Visual Studio 2015
-              CONAN_VISUAL_VERSIONS: 14
-            - APPVEYOR_BUILD_WORKER_IMAGE: Visual Studio 2017
-              CONAN_VISUAL_VERSIONS: 15
 
     install:
       - set PATH=%PATH%;%PYTHON%/Scripts/
@@ -37,23 +38,6 @@
     only:
       - /stable\/.*/
 
-    environment:
-        PYTHON: "C:\\Python37"
-
-        CONAN_REFERENCE: "multiformats/0.1"
-        CONAN_USERNAME: "matt1795"
-        CONAN_UPLOAD: "https://api.bintray.com/conan/matt1795/public-conan"
-        CONAN_CHANNEL: "stable"
-        REMOTE_NAME: "remote"
-
-        matrix:
-            - APPVEYOR_BUILD_WORKER_IMAGE: Visual Studio 2015
-              CONAN_VISUAL_VERSIONS: 12
-            - APPVEYOR_BUILD_WORKER_IMAGE: Visual Studio 2015
-              CONAN_VISUAL_VERSIONS: 14
-            - APPVEYOR_BUILD_WORKER_IMAGE: Visual Studio 2017
-              CONAN_VISUAL_VERSIONS: 15
-
     install:
       - set PATH=%PATH%;%PYTHON%/Scripts/
       - pip.exe install conan --upgrade
@@ -62,28 +46,11 @@
       - conan user -p %CONAN_PASSWORD% -r %REMOTE_NAME% %CONAN_USERNAME%
       - conan --version
     build_script:
-      - conan create . %CONAN_USERNAME%/testing
+      - conan create . %CONAN_USERNAME%/stable
     on_success:
-      - conan upload %CONAN_REFERENCE%@%CONAN_USERNAME%/testing -r %REMOTE_NAME%
+      - conan upload %CONAN_REFERENCE%@%CONAN_USERNAME%/stable -r %REMOTE_NAME%
 
 -
-  environment:
-    PYTHON: "C:\\Python37"
-
-    CONAN_REFERENCE: "multiformats/0.1"
-    CONAN_USERNAME: "matt1795"
-    CONAN_UPLOAD: "https://api.bintray.com/conan/matt1795/public-conan"
-    CONAN_CHANNEL: "testing"
-    REMOTE_NAME: "remote"
-
-    matrix:
-      - APPVEYOR_BUILD_WORKER_IMAGE: Visual Studio 2015
-        CONAN_VISUAL_VERSIONS: 12
-      - APPVEYOR_BUILD_WORKER_IMAGE: Visual Studio 2015
-        CONAN_VISUAL_VERSIONS: 14
-      - APPVEYOR_BUILD_WORKER_IMAGE: Visual Studio 2017
-        CONAN_VISUAL_VERSIONS: 15
-
   install:
     - set PATH=%PATH%;%PYTHON%/Scripts/
     - pip.exe install conan --upgrade
