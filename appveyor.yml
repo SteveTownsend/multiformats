@@ -22,8 +22,6 @@ install:
   - set PATH=%PATH%;%PYTHON%/Scripts/
   - pip.exe install conan --upgrade
   - pip.exe install conan_package_tools
-  - echo %REMOTE_NAME%
-  - echo %CONAN_UPLOAD%
   - conan remote add %REMOTE_NAME% %CONAN_UPLOAD%
   - conan user -p %CONAN_PASSWORD% -r %REMOTE_NAME% %CONAN_USERNAME%
   - conan --version
