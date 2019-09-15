@@ -21,7 +21,7 @@ install:
   - pip.exe install conan --upgrade
   - pip.exe install conan_package_tools
   - conan remote add %REMOTE_NAME% %CONAN_UPLOAD%
-  - conan user -p %CONAN_PASSWORD% -r %REMOTE_NAME% %CONAN_USERNAME%
+  - conan user
   - conan --version
 
 build_script:
@@ -33,16 +33,16 @@ for:
     only:
       - /testing\/.*/
   build_script:
+    - conan user -p %CONAN_PASSWORD% -r %REMOTE_NAME% %CONAN_USERNAME%
     - conan create . %CONAN_USERNAME%/testing
     - conan upload %CONAN_REFERENCE%@%CONAN_USERNAME%/testing -r %REMOTE_NAME%
-
-
 
 -
   branches:
     only:
       - /stable\/.*/
   build_script:
+    - conan user -p %CONAN_PASSWORD% -r %REMOTE_NAME% %CONAN_USERNAME%
     - conan create . %CONAN_USERNAME%/stable
     - conan upload %CONAN_REFERENCE%@%CONAN_USERNAME%/stable -r %REMOTE_NAME%
 
