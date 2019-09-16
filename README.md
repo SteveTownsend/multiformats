@@ -1,3 +1,4 @@
 # multiformats
+[![pipeline status](https://gitlab.com/matt1795/multiformats/badges/master/pipeline.svg)](https://gitlab.com/matt1795/multiformats/commits/master)
 
 C++17 implementations of multiformats
