@@ -9,6 +9,7 @@ class MultiformatsTestConan(ConanFile):
     requires = "gtest/1.8.1@bincrafters/stable", "multiformats/0.1@matt1795/testing"
     def configure(self):
         self.options["gtest"].build_gmock = False
+        self.options["gtest"].shared = True
 
     def build(self):
         cmake = CMake(self)
