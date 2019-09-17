@@ -36,7 +36,7 @@ namespace Multiformats::Multibase {
         Base64UrlPad
     };
 
-    std::vector<std::uint8_t> decode(std::string const& str);
+    [[export]] std::vector<std::uint8_t> decode(std::string const& str);
 
-    std::string encode(Protocol protocol, std::vector<std::uint8_t> const& buf);
+    [[export]] std::string encode(Protocol protocol, std::vector<std::uint8_t> const& buf);
 } // namespace Multiformats::Multibase
