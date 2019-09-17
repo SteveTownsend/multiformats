@@ -20,8 +20,7 @@ class MultiformatsConan(ConanFile):
         cmake.build()
 
     def package(self):
-        self.copy("*.h", dst="include", src="hello")
-        self.copy("*hello.lib", dst="lib", keep_path=False)
+        self.copy("include/*.hpp", dst=".")
         self.copy("*.dll", dst="bin", keep_path=False)
         self.copy("*.so", dst="lib", keep_path=False)
         self.copy("*.dylib", dst="lib", keep_path=False)
@@ -29,3 +28,4 @@ class MultiformatsConan(ConanFile):
 
     def package_info(self):
         self.cpp_info.cppflags = ["-std=c++17"]
+        self.cpp_info.libs = ["multiformats"]
