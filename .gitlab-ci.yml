@@ -11,6 +11,7 @@ variables:
         - sudo pip install --upgrade conan_package_tools
         - conan remote add $REMOTE_NAME $CONAN_UPLOAD
         - conan user
+        - conan profile new default
         - conan profile update settings.compiler.libcxx=libstdc++11 default
         - conan --version
     script:
