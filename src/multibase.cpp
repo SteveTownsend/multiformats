@@ -8,6 +8,7 @@
 
 #include <regex>
 #include <stdexcept>
+#include <unordered_map>
 
 #include <cstring>
 
@@ -67,93 +68,55 @@ namespace {
 
         throw std::runtime_error("invalid protocol");
     }
+    std::unordered_map<Protocol, std::regex> const patterns{
+        std::make_pair(Protocol::Identity, std::regex{"^0x00.*$"}),
+        std::make_pair(Protocol::Base2, std::regex{"^0[0-1]*$"}),
+        std::make_pair(Protocol::Base8, std::regex{"^7[0-7]*$"}),
+        std::make_pair(Protocol::Base10, std::regex{"^9[0-9]*$"}),
+        std::make_pair(Protocol::Base16, std::regex{"^f[0-9a-f]*"}),
+        std::make_pair(Protocol::Base16Upper, std::regex{"^F[0-9A-F]*$"}),
+        std::make_pair(Protocol::Base32Hex, std::regex{"^v[0-9a-v]*$"}),
+        std::make_pair(Protocol::Base32HexUpper, std::regex{"^V[0-9A-V]*$"}),
+        std::make_pair(Protocol::Base32HexPad, std::regex{"^t[0-9a-v=]*$"}),
+        std::make_pair(Protocol::Base32HexPadUpper,
+                       std::regex{"^T[0-9A-V=]*$"}),
+        std::make_pair(Protocol::Base32, std::regex{"^b[2-7a-z]*$"}),
+        std::make_pair(Protocol::Base32Upper, std::regex{"^B[2-7A-Z]*$"}),
+        std::make_pair(Protocol::Base32Pad, std::regex{"^c[2-7a-z=]*$"}),
+        std::make_pair(Protocol::Base32PadUpper,
+                       std::regex{"^C[2-7A-Z=]*$^C[2-7A-Z=]*$"}),
+        std::make_pair(Protocol::Base32Z, std::regex{"^h[13-7a-km-uw-z]*$"}),
+        std::make_pair(Protocol::Base58Flickr,
+                       std::regex{"^Z[1-9A-HJ-Za-km-z]*$"}),
+        std::make_pair(Protocol::Base58Btc,
+                       std::regex{"^(z|1|Q)[1-9A-HJ-Za-km-z]*$"}),
+        std::make_pair(Protocol::Base64, std::regex{"^u[0-9a-zA-Z+/]*$"}),
+        std::make_pair(Protocol::Base64Pad, std::regex{"^u[0-9a-zA-Z+/=]*$"}),
+        std::make_pair(Protocol::Base64Url, std::regex{"^u[0-9a-zA-Z_-]*$"}),
+        std::make_pair(Protocol::Base64UrlPad,
+                       std::regex{"^u[0-9a-zA-Z+/=]*$"})};
 
-    std::regex get_pattern(Protocol protocol) {
-        const char* pattern = "";
+    Protocol validate(std::string const& str) {
+        auto protocol = get_protocol(str);
+        auto it = patterns.find(protocol);
 
-        switch (protocol) {
-        case Protocol::Identity:
-            pattern = "^0x00.*$";
-            break;
-        case Protocol::Base2:
-            pattern = "^0[0-1]*$";
-            break;
-        case Protocol::Base8:
-            pattern = "^7[0-7]*$";
-            break;
-        case Protocol::Base10:
-            pattern = "^9[0-9]*$";
-            break;
-        case Protocol::Base16:
-            pattern = "^f[0-9a-f]*$";
-            break;
-        case Protocol::Base16Upper:
-            pattern = "^F[0-9A-F]*$";
-            break;
-        case Protocol::Base32Hex:
-            pattern = "^v[0-9a-v]*$";
-            break;
-        case Protocol::Base32HexUpper:
-            pattern = "^V[0-9A-V]*$";
-            break;
-        case Protocol::Base32HexPad:
-            pattern = "^t[0-9a-v=]*$";
-            break;
-        case Protocol::Base32HexPadUpper:
-            pattern = "^T[0-9A-V=]*$";
-            break;
-        case Protocol::Base32:
-            pattern = "^b[2-7a-z]*$";
-            break;
-        case Protocol::Base32Upper:
-            pattern = "^B[2-7A-Z]*$";
-            break;
-        case Protocol::Base32Pad:
-            pattern = "^c[2-7a-z=]*$";
-            break;
-        case Protocol::Base32PadUpper:
-            pattern = "^C[2-7A-Z=]*$";
-            break;
-        case Protocol::Base32Z:
-            pattern = "^h[13-7a-km-uw-z]*$";
-            break;
-        case Protocol::Base58Flickr:
-            pattern = "^Z[1-9A-HJ-Za-km-z]*$";
-            break;
-        case Protocol::Base58Btc:
-            pattern = "^(z|1|Q)[1-9A-HJ-Za-km-z]*$";
-            break;
-        case Protocol::Base64:
-            pattern = "^u[0-9a-zA-Z+/]*$";
-            break;
-        case Protocol::Base64Pad:
-            pattern = "^u[0-9a-zA-Z+/=]*$";
-            break;
-        case Protocol::Base64Url:
-            pattern = "^u[0-9a-zA-Z_-]*$";
-            break;
-        case Protocol::Base64UrlPad:
-            pattern = "^u[0-9a-zA-Z+/=]*$";
-            break;
-        }
-
-        if (strlen(pattern) == 0)
+        if (it == patterns.end())
             throw std::runtime_error("unknown or unsupported protocol");
 
-        return std::regex{pattern};
-    }
-
-    void validate(std::string const& str) {
-        auto protocol = get_protocol(str);
-        std::regex pattern = get_pattern(protocol);
-
+        std::regex pattern = it->second;
         if (!std::regex_match(str, pattern))
             throw std::runtime_error("invalid characters for protocol");
+
+        return protocol;
     }
+
 } // namespace
 
 namespace Multiformats::Multibase {
-    std::vector<std::uint8_t> decode(std::string const& str) { return {}; }
+    std::vector<std::uint8_t> decode(std::string const& str) {
+        auto protocol = validate(str);
+        return {};
+    }
 
     std::string encode(Protocol protocol,
                        std::vector<std::uint8_t> const& buf) {
