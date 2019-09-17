@@ -20,9 +20,9 @@ class MultiformatsConan(ConanFile):
     generators = "cmake"
     exports_sources = "*"
 
-#    def configure(self):
-#        if self.settings.os == "Windows" and self.options.shared:
-#            raise Exception("No dll option for windows")
+    def configure(self):
+        if self.settings.os == "Windows":
+            raise Exception("Sorry, no windows yet")
 
     def build(self):
         cmake = CMake(self)

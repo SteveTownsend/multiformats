@@ -14,6 +14,11 @@ variables:
         - conan --version
     script:
         - conan create . $CONAN_USERNAME/$CONAN_CHANNEL -s compiler.libcxx=libstdc++11 --build missing
+    artifacts:
+        paths:
+            - test_package/build/*/results.xml
+        reports:
+            junit: results.xml
 
 gcc-7:
     image: conanio/gcc7

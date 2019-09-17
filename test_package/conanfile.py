@@ -27,4 +27,4 @@ class MultiformatsTestConan(ConanFile):
     def test(self):
         if not tools.cross_building(self.settings):
             pass
-#            self.run("bin%sMultiformatsTests --gtest_output=\"xml:results.xml\"" % os.sep)
+            self.run("bin%sMultiformatsTests --gtest_output=\"xml:results.xml\"" % os.sep)
