@@ -11,6 +11,12 @@ class MultiformatsConan(ConanFile):
     homepage = "https://multiformats.io/"
     topics = ("<Put some tag here>", "<here>", "<and here>")
     settings = "os", "compiler", "build_type", "arch"
+    options = {
+        "shared": [True, False]
+    }
+    default_options = {
+        "shared": True
+    }
     generators = "cmake"
     exports_sources = "*"
 
