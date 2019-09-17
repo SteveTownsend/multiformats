@@ -22,6 +22,7 @@ class MultiformatsConan(ConanFile):
 
     def build(self):
         cmake = CMake(self)
+        cmake.definitions["BUILD_SHARED_LIBS"] = "ON" if self.options.shared else "OFF"
         cmake.configure(source_folder=self.source_folder)
         cmake.build()
 
