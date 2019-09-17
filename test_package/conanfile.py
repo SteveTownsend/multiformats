@@ -5,7 +5,7 @@ from conans import ConanFile, CMake, tools
 
 class MultiformatsTestConan(ConanFile):
     settings = "os", "compiler", "build_type", "arch"
-    generators = "cmake", "cmake_find_package"
+    generators = "cmake"
     requires = "gtest/1.8.1@bincrafters/stable", "multiformats/0.1@matt1795/testing"
     def configure(self):
         self.options["gtest"].build_gmock = False
