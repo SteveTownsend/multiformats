@@ -6,8 +6,6 @@
 
 #include "multiformats/multibase.hpp"
 
-// weird windows fix for gtest 1.8.x
-#define GTEST_LANG_CXX11 1
 #include <gtest/gtest.h>
 
 using namespace Multiformats::Multibase;
