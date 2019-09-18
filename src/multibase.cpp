@@ -57,7 +57,8 @@ namespace {
         case '1':
         case 'Q':
             return Protocol::Base58Btc;
-        case 'm':https://www.youtube.com/watch?v=_Mbxe33BYW8
+        case 'm':
+        https: // www.youtube.com/watch?v=_Mbxe33BYW8
             return Protocol::Base64;
         case 'M':
             return Protocol::Base64Pad;
@@ -103,7 +104,7 @@ namespace {
         auto it = patterns.find(protocol);
 
         if (it == patterns.end())
-            throw std::runtime_error("unknown or unsupported protocol");
+            throw std::runtime_error("unknown protocol");
 
         std::regex pattern = it->second;
         if (!std::regex_match(str, pattern))
@@ -112,16 +113,110 @@ namespace {
         return protocol;
     }
 
+    /**
+     * Encoders and Decoders
+     *
+     * Decoders only check the prefix to make sure it is correct, if they come
+     * accross errenous coding, incorrect sizing, it will throw.
+     *
+     * The setup here is that each implementation of the encoder and decoder is
+     * a template function specialization, so that we can easily generate a
+     * table later
+     */
+    template <Protocol protocol>
+    void encode(std::vector<std::uint8_t> const& input, std::string& output);
+
+    template <Protocol protocol>
+    void decode(std::string const& input, std::vector<std::uint8_t>& output);
+
+    // Base2
+    template <>
+    void encode<Protocol::Base2>(std::vector<std::uint8_t> const& input,
+                                 std::string& output) {
+        output.reserve(8 * input.size());
+        auto inserter = std::back_inserter(output);
+        for (auto it = input.cbegin(); it != input.cend(); ++it)
+            for (auto bit = 0; bit < 8; bit++)
+                *inserter = *it & (1 << (bit - 1)) ? '1' : '0';
+    }
+
+    template <>
+    void decode<Protocol::Base2>(std::string const& input,
+                                 std::vector<std::uint8_t>& output) {
+        if (input.size() % 8 != 0)
+            throw std::runtime_error("Base2 encoding does not align to 8 bits");
+
+        output.reserve(input.size() / 8);
+
+        auto inserter = std::back_inserter(output);
+        for (auto i = 0; i < input.size() / 8; i++) {
+            auto begin_byte = std::next(input.crbegin(), i * 8);
+            auto end_byte = std::next(input.crbegin(), (i + 1) * 8);
+            for (auto it = begin_byte; it != end_byte; ++it) {
+                std::uint8_t value{0};
+                if (*it == '1')
+                    value |= 1 << std::distance(begin_byte, it);
+                else if (*it != '0')
+                    throw std::runtime_error(
+                        "invalid charater in Base2 sequence");
+
+                *inserter = value;
+            }
+        }
+
+        std::reverse(output.begin(), output.end());
+    }
+
+    struct Coder {
+        using Encoder = void (*)(std::vector<std::uint8_t> const&,
+                                 std::string&);
+        using Decoder = void (*)(std::string const&,
+                                 std::vector<std::uint8_t>&);
+
+        Encoder encoder;
+        Decoder decoder;
+    };
+
+    template <Protocol protocol>
+    constexpr auto make_coder_entry() {
+        return std::make_pair(protocol,
+                              Coder{encode<protocol>, decode<protocol>});
+    }
+
+    template <Protocol... protocols>
+    constexpr auto make_coder_entries() {
+        return (make_coder_entry<protocols>(), ...);
+    }
+
+    std::unordered_map<Protocol, Coder> const coders{
+        make_coder_entries<Protocol::Base2>()};
 } // namespace
 
 namespace Multiformats::Multibase {
     std::vector<std::uint8_t> decode(std::string const& str) {
         auto protocol = validate(str);
-        return {};
+        std::vector<std::uint8_t> ret;
+
+        auto it = coders.find(protocol);
+        if (it == coders.end())
+            throw std::runtime_error("unsupported protocol");
+        auto decoder = it->second.decoder;
+        decoder(str, ret);
+
+        return ret;
     }
 
     std::string encode(Protocol protocol,
                        std::vector<std::uint8_t> const& buf) {
-        return {};
+        std::string ret;
+
+        auto it = coders.find(protocol);
+        if (it == coders.end())
+            throw std::runtime_error("unsupported protocol");
+
+        auto encoder = it->second.encoder;
+        encoder(buf, ret);
+
+        return ret;
     }
 } // namespace Multiformats::Multibase
