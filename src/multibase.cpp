@@ -5,6 +5,7 @@
 // Date: 2019-09-12
 
 #include "multiformats/multibase.hpp"
+#include "multiformats/util.hpp"
 
 #include <regex>
 #include <stdexcept>
@@ -56,7 +57,7 @@ namespace {
         case '1':
         case 'Q':
             return Protocol::Base58Btc;
-        case 'm':
+        case 'm':https://www.youtube.com/watch?v=_Mbxe33BYW8
             return Protocol::Base64;
         case 'M':
             return Protocol::Base64Pad;
@@ -68,6 +69,7 @@ namespace {
 
         throw std::runtime_error("invalid protocol");
     }
+
     std::unordered_map<Protocol, std::regex> const patterns{
         std::make_pair(Protocol::Identity, std::regex{"^0x00.*$"}),
         std::make_pair(Protocol::Base2, std::regex{"^0[0-1]*$"}),
