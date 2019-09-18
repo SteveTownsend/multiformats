@@ -6,8 +6,6 @@
 
 #pragma once
 
-#include "multiformats/exported.hpp"
-
 #include <string>
 #include <vector>
 
@@ -38,7 +36,7 @@ namespace Multiformats::Multibase {
         Base64UrlPad
     };
 
-    std::vector<std::uint8_t> EXPORTED decode(std::string const& str);
+    std::vector<std::uint8_t> decode(std::string const& str);
 
-    std::string EXPORTED encode(Protocol protocol, std::vector<std::uint8_t> const& buf);
+    std::string encode(Protocol protocol, std::vector<std::uint8_t> const& buf);
 } // namespace Multiformats::Multibase
