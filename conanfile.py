@@ -20,10 +20,6 @@ class MultiformatsConan(ConanFile):
     generators = "cmake"
     exports_sources = "*"
 
-    def configure(self):
-        if self.settings.os == "Windows":
-            raise Exception("Sorry, no windows yet")
-
     def build(self):
         cmake = CMake(self)
         cmake.definitions["BUILD_SHARED_LIBS"] = "ON" if self.options.shared else "OFF"
