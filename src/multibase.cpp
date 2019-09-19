@@ -13,6 +13,8 @@
 
 #include <cstring>
 
+#include <iostream>
+
 namespace {
     using namespace Multiformats::Multibase;
     std::string const identity{"0x00"};
@@ -133,38 +135,38 @@ namespace {
     template <>
     void encode<Protocol::Base2>(std::vector<std::uint8_t> const& input,
                                  std::string& output) {
-        output.reserve(8 * input.size());
+        output.reserve((8 * input.size()) + 1);
         auto inserter = std::back_inserter(output);
+        *inserter = '0';
+
         for (auto it = input.cbegin(); it != input.cend(); ++it)
-            for (auto bit = 0; bit < 8; bit++)
+            for (auto bit = 8; bit > 0; bit--)
                 *inserter = *it & (1 << (bit - 1)) ? '1' : '0';
     }
 
     template <>
     void decode<Protocol::Base2>(std::string const& input,
                                  std::vector<std::uint8_t>& output) {
-        if (input.size() % 8 != 0)
+        if ((input.size() - 1) % 8 != 0)
             throw std::runtime_error("Base2 encoding does not align to 8 bits");
 
-        output.reserve(input.size() / 8);
+        output.reserve((input.size() - 1) / 8);
 
         auto inserter = std::back_inserter(output);
-        for (auto i = 0; i < input.size() / 8; i++) {
-            auto begin_byte = std::next(input.crbegin(), i * 8);
-            auto end_byte = std::next(input.crbegin(), (i + 1) * 8);
-            for (auto it = begin_byte; it != end_byte; ++it) {
-                std::uint8_t value{0};
+        for (auto it = std::next(input.cbegin(), 1); it != input.cend();) {
+            std::uint8_t value{0};
+            for (auto bit = 8; bit > 0 && it != input.cend(); bit--) {
+                std::cout << *it;
                 if (*it == '1')
-                    value |= 1 << std::distance(begin_byte, it);
+                    value |= 1 << (bit - 1);
                 else if (*it != '0')
-                    throw std::runtime_error(
-                        "invalid charater in Base2 sequence");
+                    throw std::runtime_error("nope");
 
-                *inserter = value;
+                it++;
             }
-        }
 
-        std::reverse(output.begin(), output.end());
+            *inserter = value;
+        }
     }
 
     struct Coder {
@@ -190,6 +192,13 @@ namespace {
 
     std::unordered_map<Protocol, Coder> const coders{
         make_coder_entries<Protocol::Base2>()};
+
+    auto find_coder(Protocol protocol) {
+        auto it = coders.find(protocol);
+        if (it == coders.end())
+            throw std::runtime_error("unsupported protocol");
+        return it->second;
+    }
 } // namespace
 
 namespace Multiformats::Multibase {
@@ -197,11 +206,7 @@ namespace Multiformats::Multibase {
         auto protocol = validate(str);
         std::vector<std::uint8_t> ret;
 
-        auto it = coders.find(protocol);
-        if (it == coders.end())
-            throw std::runtime_error("unsupported protocol");
-        auto decoder = it->second.decoder;
-        decoder(str, ret);
+        find_coder(protocol).decoder(str, ret);
 
         return ret;
     }
@@ -210,12 +215,7 @@ namespace Multiformats::Multibase {
                        std::vector<std::uint8_t> const& buf) {
         std::string ret;
 
-        auto it = coders.find(protocol);
-        if (it == coders.end())
-            throw std::runtime_error("unsupported protocol");
-
-        auto encoder = it->second.encoder;
-        encoder(buf, ret);
+        find_coder(protocol).encoder(buf, ret);
 
         return ret;
     }

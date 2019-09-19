@@ -35,8 +35,8 @@ struct Parameter {
 
 std::vector<Parameter> const parameters{
     {Protocol::Base2, yes_mani,
-     "0111100101100101011100110010000001101101011000010110111001101001001000000"
-     "0100001"},
+     "0011110010110010101110011001000000110110101100001011011100110100100100000"
+     "00100001"},
     {Protocol::Base8, yes_mani, "7171312714403326055632220041"},
     {Protocol::Base10, yes_mani, "9573277761329450583662625"},
     {Protocol::Base16, yes_mani, "f796573206d616e692021"},
@@ -117,12 +117,17 @@ std::vector<Parameter> const parameters{
 
 class MultibaseParamTestFixture : public ::testing::TestWithParam<Parameter> {};
 
-TEST_P(MultibaseParamTestFixture, Compatibility) {
+TEST_P(MultibaseParamTestFixture, CompatibilityEncode) {
+    Parameter param = GetParam();
+
+    EXPECT_EQ(param.encoded,
+              Multiformats::Multibase::encode(param.protocol, param.buf));
+}
+
+TEST_P(MultibaseParamTestFixture, CompatibilityDecode) {
     Parameter param = GetParam();
 
     EXPECT_EQ(param.buf, Multiformats::Multibase::decode(param.encoded));
-    EXPECT_EQ(param.encoded,
-              Multiformats::Multibase::encode(param.protocol, param.buf));
 }
 
 INSTANTIATE_TEST_CASE_P(MultibaseTests, MultibaseParamTestFixture,
