@@ -169,6 +169,17 @@ namespace {
         }
     }
 
+    // Base8
+    template <>
+    void encode<Protocol::Base8>(std::vector<std::uint8_t> const& input,
+                                 std::string& output) {
+    }
+
+    template <>
+    void decode<Protocol::Base8>(std::string const& input,
+                                 std::vector<std::uint8_t>& output) {
+    }
+
     struct Coder {
         using Encoder = void (*)(std::vector<std::uint8_t> const&,
                                  std::string&);
@@ -185,13 +196,10 @@ namespace {
                               Coder{encode<protocol>, decode<protocol>});
     }
 
-    template <Protocol... protocols>
-    constexpr auto make_coder_entries() {
-        return (make_coder_entry<protocols>(), ...);
-    }
-
     std::unordered_map<Protocol, Coder> const coders{
-        make_coder_entries<Protocol::Base2>()};
+        make_coder_entry<Protocol::Base2>(),
+        make_coder_entry<Protocol::Base8>()
+    };
 
     auto find_coder(Protocol protocol) {
         auto it = coders.find(protocol);
