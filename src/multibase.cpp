@@ -137,11 +137,11 @@ namespace {
                                  std::string& output) {
         output.reserve((8 * input.size()) + 1);
         auto inserter = std::back_inserter(output);
-        *inserter = '0';
+        inserter = '0';
 
         for (auto it = input.cbegin(); it != input.cend(); ++it)
             for (auto bit = 8; bit > 0; bit--)
-                *inserter = *it & (1 << (bit - 1)) ? '1' : '0';
+                inserter = *it & (1 << (bit - 1)) ? '1' : '0';
     }
 
     template <>
@@ -165,7 +165,7 @@ namespace {
                 it++;
             }
 
-            *inserter = value;
+            inserter = value;
         }
     }
 
@@ -173,10 +173,38 @@ namespace {
     template <>
     void encode<Protocol::Base8>(std::vector<std::uint8_t> const& input,
                                  std::string& output) {
+        auto inserter = back_inserter(output);
+        inserter = '7';
+        auto it = input.cbegin();
+
+        // insert any leading zeros
+        while (*it == 0)
+            inserter = '0';
     }
 
     template <>
     void decode<Protocol::Base8>(std::string const& input,
+                                 std::vector<std::uint8_t>& output) {
+    }
+
+    // Base10
+    template <>
+    void encode<Protocol::Base10>(std::vector<std::uint8_t> const& input,
+                                 std::string& output) {
+
+        auto inserter = back_inserter(output);
+        inserter = '9';
+        auto it = input.cbegin();
+
+        // insert any leading zeros
+        while (*it == 0)
+            inserter = '0';
+
+
+    }
+
+    template <>
+    void decode<Protocol::Base10>(std::string const& input,
                                  std::vector<std::uint8_t>& output) {
     }
 
@@ -198,7 +226,7 @@ namespace {
 
     std::unordered_map<Protocol, Coder> const coders{
         make_coder_entry<Protocol::Base2>(),
-        make_coder_entry<Protocol::Base8>()
+        make_coder_entry<Protocol::Base10>()
     };
 
     auto find_coder(Protocol protocol) {

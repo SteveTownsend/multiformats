@@ -14,6 +14,10 @@ class MultiformatsConan(ConanFile):
     generators = "cmake"
     exports_sources = "*"
 
+    def configure(self):
+        if self.settings.compiler in ["gcc", "clang"] and self.settings.compiler.libcxx != "libstdc++11":
+            raise Exception("need to use libstdc++11 for compiler.libcxx")
+
     def build(self):
         cmake = CMake(self)
         cmake.configure(source_folder=self.source_folder)

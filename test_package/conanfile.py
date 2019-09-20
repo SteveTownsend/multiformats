@@ -11,9 +11,6 @@ class MultiformatsTestConan(ConanFile):
         self.options["gtest"].build_gmock = False
         self.options["gtest"].shared = True
 
-        if self.settings.compiler in ["gcc", "clang"] and self.settings.compiler.libcxx != "libstdc++11":
-            raise Exception("need to use libstdc++11 for compiler.libcxx")
-
     def build(self):
         cmake = CMake(self)
         cmake.configure(source_folder=self.source_folder)
