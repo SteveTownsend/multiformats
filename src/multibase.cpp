@@ -130,6 +130,26 @@ namespace {
     template <Protocol protocol>
     void decode(std::string const& input, std::vector<std::uint8_t>& output);
 
+    template <Protocol protocol>
+    void encode_upper(std::vector<std::uint8_t> const& input,
+                      std::string& output, std::size_t reserve_size) {
+        output.reserve(reserve_size);
+        encode<protocol>(input, output);
+        std::transform(output.begin(), output.end(), output.begin(),
+                       [](auto elem) { return std::toupper(elem); });
+    }
+
+    template <Protocol protocol>
+    void decode_upper(std::string const& input,
+                      std::vector<std::uint8_t>& output,
+                      std::size_t reserve_size) {
+        std::string clone = input;
+        output.reserve(reserve_size);
+        std::transform(clone.begin(), clone.end(), clone.begin(),
+                       [](auto elem) { return std::tolower(elem); });
+        decode<protocol>(clone, output);
+    }
+
     // Base2
     template <>
     void encode<Protocol::Base2>(std::vector<std::uint8_t> const& input,
@@ -172,6 +192,8 @@ namespace {
     void encode<Protocol::Base8>(std::vector<std::uint8_t> const& input,
                                  std::string& output) {
         std::array const characters{'0', '1', '2', '3', '4', '5', '6', '7'};
+        std::uint8_t const mask{0x7};
+
         output.reserve(input.size());
 
         auto it = input.crbegin();
@@ -182,27 +204,27 @@ namespace {
         while (end != input.crbegin() && *std::prev(end) == '0')
             --end;
 
-        std::uint32_t overflow;
-        std::uint32_t offset{0};
+        std::uint8_t overflow;
+        std::uint8_t offset{0};
         for (; it != end; ++it) {
             if (offset > 0) {
                 auto value =
-                    ((*it & (0x7 >> (3 - offset))) << (3 - offset)) | overflow;
+                    ((*it & (mask >> (3 - offset))) << (3 - offset)) | overflow;
                 inserter = characters[value];
             }
 
             for (; offset < 8; offset += 3) {
-                auto value = (*it & (0x7 << offset)) >> offset;
+                auto value = (*it & (mask << offset)) >> offset;
                 if (offset > 5)
                     overflow = value;
                 else
                     inserter = characters[value];
             }
 
-            offset = offset & 0x7;
+            offset = offset & mask;
         }
 
-        if (((offset - 3) & 0x7) > 5 && overflow != 0)
+        if (((offset - 3) & mask) > 5 && overflow != 0)
             inserter = characters[overflow];
 
         fill_n(inserter, std::distance(end, std::prev(input.crend())), '0');
@@ -212,7 +234,58 @@ namespace {
 
     template <>
     void decode<Protocol::Base8>(std::string const& input,
-                                 std::vector<std::uint8_t>& output) {}
+                                 std::vector<std::uint8_t>& output) {
+
+        std::uint8_t const mask{0x7};
+        std::size_t leading_zeros{0};
+        auto convert = [](auto num) { return num - 48; };
+
+        if (input.empty())
+            throw std::runtime_error("input is empty");
+
+        if (input.size() > 1) {
+            auto it = std::next(input.cbegin());
+            for (; *it == '0' && it != input.cend(); ++it)
+                leading_zeros++;
+
+            std::size_t ms_bits{3};
+            while ((convert(*it) & (1 << ms_bits)) == 0 && ms_bits > 0)
+                ms_bits--;
+
+            ++it;
+
+            std::size_t bits = ms_bits + (3 * distance(it, input.cend()));
+            std::fill_n(std::back_inserter(output), leading_zeros, 0);
+            std::fill_n(std::back_inserter(output), bits / 8 + 1, 0);
+        } else {
+            return;
+        }
+
+        auto it = input.crbegin();
+        auto out = output.rbegin();
+        auto inserter = std::back_inserter(output);
+
+        std::uint8_t overflow;
+        std::uint8_t offset{0};
+        for (; it != std::prev(input.crend(), leading_zeros + 1) &&
+               out != output.rend();
+             ++it) {
+            auto value = convert(*it);
+
+            if (offset > 0 && offset < 3)
+                *out |= overflow;
+
+            *out |= (value & mask) << offset;
+
+            if (offset > 4)
+                ++out;
+
+            if (offset > 5)
+                overflow = value >> (8 - offset);
+
+            offset = (offset + 3) & mask;
+        }
+    }
 
     // Base16
     template <>
@@ -267,20 +340,13 @@ namespace {
     template <>
     void encode<Protocol::Base16Upper>(std::vector<std::uint8_t> const& input,
                                        std::string& output) {
-        output.reserve(2 * input.size());
-        encode<Protocol::Base16>(input, output);
-        std::transform(output.begin(), output.end(), output.begin(),
-                       [](auto elem) { return std::toupper(elem); });
+        encode_upper<Protocol::Base16>(input, output, 2 * input.size());
     }
 
     template <>
     void decode<Protocol::Base16Upper>(std::string const& input,
                                        std::vector<std::uint8_t>& output) {
-        std::string clone = input;
-
-        std::transform(clone.begin(), clone.end(), clone.begin(),
-                       [](auto elem) { return std::tolower(elem); });
-        decode<Protocol::Base16>(clone, output);
+        decode_upper<Protocol::Base16>(input, output, (input.size() - 1) / 2);
     }
 
     struct Coder {
@@ -317,7 +383,6 @@ namespace Multiformats::Multibase {
     std::vector<std::uint8_t> decode(std::string const& str) {
         auto protocol = validate(str);
         std::vector<std::uint8_t> ret;
-
         find_coder(protocol).decoder(str, ret);
 
         return ret;
@@ -326,7 +391,6 @@ namespace Multiformats::Multibase {
     std::string encode(Protocol protocol,
                        std::vector<std::uint8_t> const& buf) {
         std::string ret;
-
         find_coder(protocol).encoder(buf, ret);
 
         return ret;
