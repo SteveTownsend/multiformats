@@ -17,13 +17,12 @@
 
 namespace {
     using namespace Multiformats::Multibase;
-    std::string const identity{"0x00"};
 
     Protocol get_protocol(std::string const& str) {
-        if (strncmp(str.c_str(), identity.c_str(), identity.size()) == 0)
-            return Protocol::Identity;
+        if (str.empty())
+            throw std::runtime_error("can't get protocol for empty string");
 
-        char first = str[0];
+        char first = str.front();
         switch (first) {
         case '0':
             return Protocol::Base2;
@@ -60,7 +59,6 @@ namespace {
         case 'Q':
             return Protocol::Base58Btc;
         case 'm':
-        https: // www.youtube.com/watch?v=_Mbxe33BYW8
             return Protocol::Base64;
         case 'M':
             return Protocol::Base64Pad;
@@ -156,7 +154,6 @@ namespace {
         for (auto it = std::next(input.cbegin(), 1); it != input.cend();) {
             std::uint8_t value{0};
             for (auto bit = 8; bit > 0 && it != input.cend(); bit--) {
-                std::cout << *it;
                 if (*it == '1')
                     value |= 1 << (bit - 1);
                 else if (*it != '0')
@@ -173,24 +170,53 @@ namespace {
     template <>
     void encode<Protocol::Base8>(std::vector<std::uint8_t> const& input,
                                  std::string& output) {
-        auto inserter = back_inserter(output);
-        inserter = '7';
-        auto it = input.cbegin();
+        std::array const characters{'0', '1', '2', '3', '4', '5', '6', '7'};
+        output.reserve(input.size());
 
-        // insert any leading zeros
-        while (*it == 0)
-            inserter = '0';
+        auto it = input.crbegin();
+        auto end = input.crend();
+        auto inserter = back_inserter(output);
+
+        // find end of leading zero bytes
+        while (end != input.crbegin() && *std::prev(end) == '0')
+            --end;
+
+        std::uint32_t overflow;
+        std::uint32_t offset{0};
+        for (; it != end; ++it) {
+            if (offset > 0) {
+                auto value =
+                    ((*it & (0x7 >> (3 - offset))) << (3 - offset)) | overflow;
+                inserter = characters[value];
+            }
+
+            for (; offset < 8; offset += 3) {
+                auto value = (*it & (0x7 << offset)) >> offset;
+                if (offset > 5)
+                    overflow = value;
+                else
+                    inserter = characters[value];
+            }
+
+            offset = offset & 0x7;
+        }
+
+        if (((offset - 3) & 0x7) > 5 && overflow != 0)
+            inserter = characters[overflow];
+
+        fill_n(inserter, std::distance(end, std::prev(input.crend())), '0');
+        inserter = '7';
+        std::reverse(output.begin(), output.end());
     }
 
     template <>
     void decode<Protocol::Base8>(std::string const& input,
-                                 std::vector<std::uint8_t>& output) {
-    }
+                                 std::vector<std::uint8_t>& output) {}
 
     // Base10
     template <>
     void encode<Protocol::Base10>(std::vector<std::uint8_t> const& input,
-                                 std::string& output) {
+                                  std::string& output) {
 
         auto inserter = back_inserter(output);
         inserter = '9';
@@ -199,14 +225,11 @@ namespace {
         // insert any leading zeros
         while (*it == 0)
             inserter = '0';
-
-
     }
 
     template <>
     void decode<Protocol::Base10>(std::string const& input,
-                                 std::vector<std::uint8_t>& output) {
-    }
+                                  std::vector<std::uint8_t>& output) {}
 
     struct Coder {
         using Encoder = void (*)(std::vector<std::uint8_t> const&,
@@ -226,8 +249,7 @@ namespace {
 
     std::unordered_map<Protocol, Coder> const coders{
         make_coder_entry<Protocol::Base2>(),
-        make_coder_entry<Protocol::Base10>()
-    };
+        make_coder_entry<Protocol::Base8>()};
 
     auto find_coder(Protocol protocol) {
         auto it = coders.find(protocol);
