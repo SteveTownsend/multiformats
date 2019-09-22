@@ -11,6 +11,7 @@
 #include <stdexcept>
 #include <unordered_map>
 
+#include <cctype>
 #include <cstring>
 
 #include <iostream>
@@ -213,23 +214,74 @@ namespace {
     void decode<Protocol::Base8>(std::string const& input,
                                  std::vector<std::uint8_t>& output) {}
 
-    // Base10
+    // Base16
     template <>
-    void encode<Protocol::Base10>(std::vector<std::uint8_t> const& input,
+    void encode<Protocol::Base16>(std::vector<std::uint8_t> const& input,
                                   std::string& output) {
+        std::array const characters{'0', '1', '2', '3', '4', '5', '6', '7',
+                                    '8', '9', 'a', 'b', 'c', 'd', 'e', 'f'};
 
-        auto inserter = back_inserter(output);
-        inserter = '9';
-        auto it = input.cbegin();
+        output.reserve(2 * input.size());
+        auto inserter = std::back_inserter(output);
+        inserter = 'f';
 
-        // insert any leading zeros
-        while (*it == 0)
-            inserter = '0';
+        for (auto elem : input) {
+            inserter = characters[(0xf0 & elem) >> 4];
+            inserter = characters[0x0f & elem];
+        }
     }
 
     template <>
-    void decode<Protocol::Base10>(std::string const& input,
-                                  std::vector<std::uint8_t>& output) {}
+    void decode<Protocol::Base16>(std::string const& input,
+                                  std::vector<std::uint8_t>& output) {
+        if (input.size() % 2 != 1)
+            throw std::runtime_error("incorrect alignment for Base16");
+
+        output.reserve(input.size() / 2);
+
+        auto it = std::next(input.cbegin());
+        auto inserter = std::back_inserter(output);
+        auto convert = [](std::uint8_t num) {
+            std::uint8_t value;
+            if (num > 47 && num < 58)
+                value = num - 48;
+            else if (num > 96 && num < 123)
+                value = num - 87;
+            else
+                throw std::runtime_error("invalid character");
+
+            return value;
+        };
+
+        while (it != input.cend()) {
+            auto ms = *it;
+            ++it;
+            auto ls = *it;
+            ++it;
+
+            inserter = (convert(ms) << 4) | convert(ls);
+        }
+    }
+
+    // Base16Upper
+    template <>
+    void encode<Protocol::Base16Upper>(std::vector<std::uint8_t> const& input,
+                                       std::string& output) {
+        output.reserve(2 * input.size());
+        encode<Protocol::Base16>(input, output);
+        std::transform(output.begin(), output.end(), output.begin(),
+                       [](auto elem) { return std::toupper(elem); });
+    }
+
+    template <>
+    void decode<Protocol::Base16Upper>(std::string const& input,
+                                       std::vector<std::uint8_t>& output) {
+        std::string clone = input;
+
+        std::transform(clone.begin(), clone.end(), clone.begin(),
+                       [](auto elem) { return std::tolower(elem); });
+        decode<Protocol::Base16>(clone, output);
+    }
 
     struct Coder {
         using Encoder = void (*)(std::vector<std::uint8_t> const&,
@@ -249,7 +301,9 @@ namespace {
 
     std::unordered_map<Protocol, Coder> const coders{
         make_coder_entry<Protocol::Base2>(),
-        make_coder_entry<Protocol::Base8>()};
+        make_coder_entry<Protocol::Base8>(),
+        make_coder_entry<Protocol::Base16>(),
+        make_coder_entry<Protocol::Base16Upper>()};
 
     auto find_coder(Protocol protocol) {
         auto it = coders.find(protocol);

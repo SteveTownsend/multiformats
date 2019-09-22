@@ -40,6 +40,7 @@ std::vector<Parameter> const parameters{
     {Protocol::Base8, yes_mani, "7171312714403326055632220041"},
     {Protocol::Base10, yes_mani, "9573277761329450583662625"},
     {Protocol::Base16, yes_mani, "f796573206d616e692021"},
+    {Protocol::Base16Upper, yes_mani, "F796573206D616E692021"},
 
     {Protocol::Base16, {0x01}, "f01"},
     {Protocol::Base16, {0x0f}, "f0f"},
