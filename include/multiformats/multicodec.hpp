@@ -11,6 +11,18 @@
 #include <map>
 
 namespace Multiformats::Multicodec {
+    enum class Tag {
+        Multihash,
+        Multiaddr,
+        Namespace,
+        Multiformat,
+        Multicodec,
+        Serialization,
+        Ipld,
+        Key,
+        Holochain
+    };
+
     std::map<std::string, Varint> table {
         { "identity", 0x00 },
         { "ip4", 0x04 },

@@ -39,6 +39,11 @@ std::vector<Parameter> const parameters{
      "00100001"},
     {Protocol::Base8, yes_mani, "7171312714403326055632220041"},
     {Protocol::Base10, yes_mani, "9573277761329450583662625"},
+    {Protocol::Base10, {0x00, 0x01}, "901"},
+    {Protocol::Base10, {0x00, 0x00, 0xff}, "900255"},
+    {Protocol::Base10, {0x01, 0x00}, "9256"},
+    {Protocol::Base10, {0x00, 0x01, 0x00}, "90256"},
+    {Protocol::Base10, {0xff, 0xff, 0xff}, "916777215"},
     {Protocol::Base16, yes_mani, "f796573206d616e692021"},
     {Protocol::Base16Upper, yes_mani, "F796573206D616E692021"},
 
@@ -59,6 +64,14 @@ std::vector<Parameter> const parameters{
     {Protocol::Base32, fooba, "bmzxw6ytb"},
     {Protocol::Base32, foobar, "bmzxw6ytboi"},
 
+    {Protocol::Base32Upper, yes_mani, "BPFSXGIDNMFXGSIBB"},
+    {Protocol::Base32Upper, f, "BMY"},
+    {Protocol::Base32Upper, fo, "BMZXQ"},
+    {Protocol::Base32Upper, foo, "BMZXW6"},
+    {Protocol::Base32Upper, foob, "BMZXW6YQ"},
+    {Protocol::Base32Upper, fooba, "BMZXW6YTB"},
+    {Protocol::Base32Upper, foobar, "BMZXW6YTBOI"},
+
     {Protocol::Base32Pad, yes_mani, "cpfsxgidnmfxgsibb"},
     {Protocol::Base32Pad, f, "cmy======"},
     {Protocol::Base32Pad, fo, "cmzxq===="},
@@ -66,6 +79,14 @@ std::vector<Parameter> const parameters{
     {Protocol::Base32Pad, foob, "cmzxw6yq="},
     {Protocol::Base32Pad, fooba, "cmzxw6ytb"},
     {Protocol::Base32Pad, foobar, "cmzxw6ytboi======"},
+
+    {Protocol::Base32PadUpper, yes_mani, "CPFSXGIDNMFXGSIBB"},
+    {Protocol::Base32PadUpper, f, "CMY======"},
+    {Protocol::Base32PadUpper, fo, "CMZXQ===="},
+    {Protocol::Base32PadUpper, foo, "CMZXW6==="},
+    {Protocol::Base32PadUpper, foob, "CMZXW6YQ="},
+    {Protocol::Base32PadUpper, fooba, "CMZXW6YTB"},
+    {Protocol::Base32PadUpper, foobar, "CMZXW6YTBOI======"},
 
     {Protocol::Base32Hex, yes_mani, "vf5in683dc5n6i811"},
     {Protocol::Base32Hex, f, "vco"},
@@ -75,6 +96,14 @@ std::vector<Parameter> const parameters{
     {Protocol::Base32Hex, fooba, "vcpnmuoj1"},
     {Protocol::Base32Hex, foobar, "vcpnmuoj1e8"},
 
+    {Protocol::Base32HexUpper, yes_mani, "VF5IN683DC5N6I811"},
+    {Protocol::Base32HexUpper, f, "VCO"},
+    {Protocol::Base32HexUpper, fo, "VCPNG"},
+    {Protocol::Base32HexUpper, foo, "VCPNMU"},
+    {Protocol::Base32HexUpper, foob, "VCPNMUOG"},
+    {Protocol::Base32HexUpper, fooba, "VCPNMUOJ1"},
+    {Protocol::Base32HexUpper, foobar, "VCPNMUOJ1E8"},
+
     {Protocol::Base32HexPad, yes_mani, "tf5in683dc5n6i811"},
     {Protocol::Base32HexPad, f, "tco======"},
     {Protocol::Base32HexPad, fo, "tcpng===="},
@@ -82,6 +111,14 @@ std::vector<Parameter> const parameters{
     {Protocol::Base32HexPad, foob, "tcpnmuog="},
     {Protocol::Base32HexPad, fooba, "tcpnmuoj1"},
     {Protocol::Base32HexPad, foobar, "tcpnmuoj1e8======"},
+
+    {Protocol::Base32HexPadUpper, yes_mani, "TF5IN683DC5N6I811"},
+    {Protocol::Base32HexPadUpper, f, "TCO======"},
+    {Protocol::Base32HexPadUpper, fo, "TCPNG===="},
+    {Protocol::Base32HexPadUpper, foo, "TCPNMU==="},
+    {Protocol::Base32HexPadUpper, foob, "TCPNMUOG="},
+    {Protocol::Base32HexPadUpper, fooba, "TCPNMUOJ1"},
+    {Protocol::Base32HexPadUpper, foobar, "TCPNMUOJ1E8======"},
 
     {Protocol::Base32Z, yes_mani, "hxf1zgedpcfzg1ebb"},
     {Protocol::Base58Flickr, yes_mani, "Z7Pznk19XTTzBtx"},
@@ -133,10 +170,3 @@ TEST_P(MultibaseParamTestFixture, CompatibilityDecode) {
 
 INSTANTIATE_TEST_CASE_P(MultibaseTests, MultibaseParamTestFixture,
                         ::testing::ValuesIn(parameters));
-
-/*
-Test(MultibaseTest, Randomized) {
-
-}
-*/
-

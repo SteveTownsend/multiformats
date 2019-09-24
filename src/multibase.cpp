@@ -7,7 +7,12 @@
 #include "multiformats/multibase.hpp"
 #include "multiformats/util.hpp"
 
+#include <openssl/evp.h>
+
+#include <algorithm>
+#include <iomanip>
 #include <regex>
+#include <sstream>
 #include <stdexcept>
 #include <unordered_map>
 
@@ -287,6 +292,59 @@ namespace {
         }
     }
 
+    // Base10
+    template <>
+    void encode<Protocol::Base10>(std::vector<std::uint8_t> const& input,
+                                  std::string& output) {
+        // FIXME: not working yet
+        std::uint32_t const max{1000000};
+
+        if (input.size() == 1) {
+            output.push_back('9');
+            return;
+        }
+
+        std::vector<std::uint32_t> buf;
+        std::uint32_t overflow{0};
+        std::size_t leading_zeros{0};
+
+        for (auto it = input.cbegin(); it != input.cend() && *it == 0; ++it)
+            leading_zeros++;
+
+        for (auto it = input.crbegin();
+             it != std::prev(input.crend(), leading_zeros); ++it) {
+            auto mod = std::distance(input.crbegin(), it) % 3;
+
+            if (mod == 0)
+                buf.push_back(overflow);
+
+            buf.back() += static_cast<std::uint32_t>(*it) << (8 * mod);
+
+            if (mod == 2) {
+                overflow = buf.back() / max;
+                buf.back() = buf.back() % max;
+            }
+        }
+
+        // formatting output
+        std::stringstream ss;
+        auto it = buf.crbegin();
+
+        ss << '9';
+        for (auto i = 0; i < leading_zeros; i++)
+            ss << '0';
+
+        ss << *(it++) << std::setfill('0') << std::setw(2);
+        for (; it != buf.crend(); ++it)
+            ss << *it;
+
+        output = ss.str();
+    }
+
+    template <>
+    void decode<Protocol::Base10>(std::string const& input,
+                                  std::vector<std::uint8_t>& output) {}
+
     // Base16
     template <>
     void encode<Protocol::Base16>(std::vector<std::uint8_t> const& input,
@@ -349,6 +407,26 @@ namespace {
         decode_upper<Protocol::Base16>(input, output, (input.size() - 1) / 2);
     }
 
+    // Base64
+    template <>
+    void encode<Protocol::Base64>(std::vector<std::uint8_t> const& input,
+                                  std::string& output) {
+        std::vector<std::uint8_t> buf;
+        std::fill_n(std::back_inserter(buf), input.size() * 4 / 3 + 3, 0);
+        buf[0] = 'm';
+        EVP_EncodeBlock(buf.data() + 1, input.data(), input.size());
+        output =
+            std::string{buf.begin(), std::find_if(buf.begin(), buf.end(),
+                [](auto& elem){
+                    return elem == '\0' || elem == '=';
+                })};
+    }
+
+    template <>
+    void decode<Protocol::Base64>(std::string const& input,
+                                  std::vector<std::uint8_t>& output) {
+    }
+
     struct Coder {
         using Encoder = void (*)(std::vector<std::uint8_t> const&,
                                  std::string&);
@@ -369,6 +447,7 @@ namespace {
         make_coder_entry<Protocol::Base2>(),
         make_coder_entry<Protocol::Base8>(),
         make_coder_entry<Protocol::Base16>(),
+        make_coder_entry<Protocol::Base64>(),
         make_coder_entry<Protocol::Base16Upper>()};
 
     auto find_coder(Protocol protocol) {

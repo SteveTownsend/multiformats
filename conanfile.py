@@ -11,7 +11,8 @@ class MultiformatsConan(ConanFile):
     homepage = "https://multiformats.io/"
     topics = ("<Put some tag here>", "<here>", "<and here>")
     settings = "os", "compiler", "build_type", "arch"
-    generators = "cmake"
+    requires = "OpenSSL/1.1.1b@conan/stable"
+    generators = "cmake_find_package", "cmake"
     exports_sources = "*"
 
     def configure(self):
