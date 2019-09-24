@@ -30,6 +30,8 @@ namespace {
 
         char first = str.front();
         switch (first) {
+        case '\0':
+            return Protocol::Identity;
         case '0':
             return Protocol::Base2;
         case '7':
@@ -78,7 +80,7 @@ namespace {
     }
 
     std::unordered_map<Protocol, std::regex> const patterns{
-        std::make_pair(Protocol::Identity, std::regex{"^0x00.*$"}),
+        std::make_pair(Protocol::Identity, std::regex{"^.*$"}),
         std::make_pair(Protocol::Base2, std::regex{"^0[0-1]*$"}),
         std::make_pair(Protocol::Base8, std::regex{"^7[0-7]*$"}),
         std::make_pair(Protocol::Base10, std::regex{"^9[0-9]*$"}),
@@ -137,8 +139,7 @@ namespace {
 
     template <Protocol protocol>
     void encode_upper(std::vector<std::uint8_t> const& input,
-                      std::string& output, std::size_t reserve_size) {
-        output.reserve(reserve_size);
+                      std::string& output) {
         encode<protocol>(input, output);
         std::transform(output.begin(), output.end(), output.begin(),
                        [](auto elem) { return std::toupper(elem); });
@@ -146,13 +147,24 @@ namespace {
 
     template <Protocol protocol>
     void decode_upper(std::string const& input,
-                      std::vector<std::uint8_t>& output,
-                      std::size_t reserve_size) {
+                      std::vector<std::uint8_t>& output) {
         std::string clone = input;
-        output.reserve(reserve_size);
         std::transform(clone.begin(), clone.end(), clone.begin(),
                        [](auto elem) { return std::tolower(elem); });
         decode<protocol>(clone, output);
+    }
+
+    // Identity
+    template <>
+    void encode<Protocol::Identity>(std::vector<std::uint8_t> const& input,
+                                    std::string& output) {
+        output = std::string{input.cbegin(), input.cend()};
+    }
+
+    template <>
+    void decode<Protocol::Identity>(std::string const& input,
+                                    std::vector<std::uint8_t>& output) {
+        output = std::vector<std::uint8_t>{input.cbegin(), input.cend()};
     }
 
     // Base2
@@ -226,7 +238,7 @@ namespace {
                     inserter = characters[value];
             }
 
-            offset = offset & mask;
+            offset &= mask;
         }
 
         if (((offset - 3) & mask) > 5 && overflow != 0)
@@ -394,18 +406,131 @@ namespace {
         }
     }
 
-    // Base16Upper
+    // Base32 variables / functions
+    std::array const base32_lookup{'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h',
+                                   'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p',
+                                   'q', 'r', 's', 't', 'u', 'v', 'w', 'x',
+                                   'y', 'z', '2', '3', '4', '5', '6', '7'};
+
+    std::array const base32_hex_lookup{'0', '1', '2', '3', '4', '5', '6', '7',
+                                       '8', '9', 'a', 'b', 'c', 'd', 'e', 'f',
+                                       'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n',
+                                       'o', 'p', 'q', 'r', 's', 't', 'u', 'v'};
+
+    std::array const base32_z_lookup{'y', 'b', 'n', 'd', 'r', 'f', 'g', '8',
+                                     'e', 'j', 'k', 'm', 'c', 'p', 'q', 'x',
+                                     'o', 't', '1', 'u', 'w', 'i', 's', 'z',
+                                     'a', '3', '4', '5', 'h', '7', '6', '9'};
+
+    void base32_encode(std::array<char, 32> const& lookup, bool padding,
+                       std::vector<std::uint8_t> const& input,
+                       std::string& output) {
+        std::uint8_t const mask{0x1f};
+        std::size_t size{padding ? ((((input.size() - 1) / 5) + 1) * 8 + 1)
+                                 : ((((input.size() * 8) + 4) / 5) + 1)};
+        output.reserve(size);
+        auto inserter = std::back_inserter(output);
+        inserter = 'b';
+
+        std::uint8_t offset{0};
+        std::uint8_t overflow{0};
+
+        auto it = input.cbegin();
+        for (; it != input.cend(); ++it) {
+            // grab overflow
+            if (offset > 0) {
+                auto shift = 8 - offset;
+                auto value = (*it & (mask << shift)) >> shift;
+                inserter = lookup[overflow + value];
+            }
+
+            for (; offset < 8; offset += 5) {
+                if (offset > 3) {
+                    auto shift = offset - 3;
+                    auto value = (*it & (mask >> shift)) << shift;
+                    if (it == std::prev(input.cend()))
+                        inserter = lookup[value];
+                    else
+                        overflow = value;
+                } else {
+                    auto shift = 3 - offset;
+                    auto value = (*it & (mask << shift)) >> shift;
+                    inserter = lookup[value];
+                }
+            }
+
+            offset &= 0x7;
+        }
+
+        if (padding) {
+            auto mod = (output.size() - 1) % 8;
+            std::size_t pads = mod == 0 ? 0 : 8 - mod;
+            std::fill_n(inserter, pads, '=');
+        }
+    }
+
+    void base32_decode(std::array<char, 32> const& lookup, bool padding,
+                       std::string const& input,
+                       std::vector<std::uint8_t>& output) {}
+
+    // Base32Hex
     template <>
-    void encode<Protocol::Base16Upper>(std::vector<std::uint8_t> const& input,
-                                       std::string& output) {
-        encode_upper<Protocol::Base16>(input, output, 2 * input.size());
+    void encode<Protocol::Base32Hex>(std::vector<std::uint8_t> const& input,
+                                     std::string& output) {
+        base32_encode(base32_hex_lookup, false, input, output);
+        output.front() = 'v';
     }
 
     template <>
-    void decode<Protocol::Base16Upper>(std::string const& input,
-                                       std::vector<std::uint8_t>& output) {
-        decode_upper<Protocol::Base16>(input, output, (input.size() - 1) / 2);
+    void decode<Protocol::Base32Hex>(std::string const& input,
+                                     std::vector<std::uint8_t>& output) {}
+
+    // Base32HexPad
+    template <>
+    void encode<Protocol::Base32HexPad>(std::vector<std::uint8_t> const& input,
+                                        std::string& output) {
+        base32_encode(base32_hex_lookup, true, input, output);
+        output.front() = 't';
     }
+
+    template <>
+    void decode<Protocol::Base32HexPad>(std::string const& input,
+                                        std::vector<std::uint8_t>& output) {}
+
+    // Base32
+    template <>
+    void encode<Protocol::Base32>(std::vector<std::uint8_t> const& input,
+                                  std::string& output) {
+        base32_encode(base32_lookup, false, input, output);
+    }
+
+    template <>
+    void decode<Protocol::Base32>(std::string const& input,
+                                  std::vector<std::uint8_t>& output) {}
+
+    // Base32Pad
+    template <>
+    void encode<Protocol::Base32Pad>(std::vector<std::uint8_t> const& input,
+                                     std::string& output) {
+        base32_encode(base32_lookup, true, input, output);
+        output.front() = 'c';
+    }
+
+    template <>
+    void decode<Protocol::Base32Pad>(std::string const& input,
+                                     std::vector<std::uint8_t>& output) {}
+
+    // Base32Z
+    template <>
+    void encode<Protocol::Base32Z>(std::vector<std::uint8_t> const& input,
+                                   std::string& output) {
+        base32_encode(base32_z_lookup, false, input, output);
+        output.front() = 'h';
+    }
+
+    template <>
+    void decode<Protocol::Base32Z>(std::string const& input,
+                                   std::vector<std::uint8_t>& output) {}
 
     // Base64Pad
     template <>
@@ -474,9 +599,10 @@ namespace {
     void decode<Protocol::Base64UrlPad>(std::string const& input,
                                         std::vector<std::uint8_t>& output) {}
 
+    // Base64Url
     template <>
     void encode<Protocol::Base64Url>(std::vector<std::uint8_t> const& input,
-                                        std::string& output) {
+                                     std::string& output) {
         if (input.empty()) {
             output = "u";
             return;
@@ -490,7 +616,7 @@ namespace {
 
     template <>
     void decode<Protocol::Base64Url>(std::string const& input,
-                                        std::vector<std::uint8_t>& output) {}
+                                     std::vector<std::uint8_t>& output) {}
 
     struct Coder {
         using Encoder = void (*)(std::vector<std::uint8_t> const&,
@@ -508,15 +634,39 @@ namespace {
                               Coder{encode<protocol>, decode<protocol>});
     }
 
+    template <Protocol upper, Protocol lower>
+    constexpr auto make_upper_coder_entry() {
+        return std::make_pair(upper,
+                              Coder{[](std::vector<std::uint8_t> const& input,
+                                       std::string& output) {
+                                        encode_upper<lower>(input, output);
+                                    },
+                                    [](std::string const& input,
+                                       std::vector<std::uint8_t>& output) {
+                                        decode_upper<lower>(input, output);
+                                    }});
+    }
+
     std::unordered_map<Protocol, Coder> const coders{
+        make_coder_entry<Protocol::Identity>(),
         make_coder_entry<Protocol::Base2>(),
         make_coder_entry<Protocol::Base8>(),
         make_coder_entry<Protocol::Base16>(),
+        make_upper_coder_entry<Protocol::Base16Upper, Protocol::Base16>(),
+        make_coder_entry<Protocol::Base32Hex>(),
+        make_upper_coder_entry<Protocol::Base32HexUpper, Protocol::Base32Hex>(),
+        make_coder_entry<Protocol::Base32HexPad>(),
+        make_upper_coder_entry<Protocol::Base32HexPadUpper,
+                               Protocol::Base32HexPad>(),
+        make_coder_entry<Protocol::Base32>(),
+        make_upper_coder_entry<Protocol::Base32Upper, Protocol::Base32>(),
+        make_coder_entry<Protocol::Base32Pad>(),
+        make_upper_coder_entry<Protocol::Base32PadUpper, Protocol::Base32Pad>(),
+        make_coder_entry<Protocol::Base32Z>(),
         make_coder_entry<Protocol::Base64>(),
         make_coder_entry<Protocol::Base64Pad>(),
         make_coder_entry<Protocol::Base64Url>(),
-        make_coder_entry<Protocol::Base64UrlPad>(),
-        make_coder_entry<Protocol::Base16Upper>()};
+        make_coder_entry<Protocol::Base64UrlPad>()};
 
     auto find_coder(Protocol protocol) {
         auto it = coders.find(protocol);
@@ -529,48 +679,48 @@ namespace {
 namespace Multiformats::Multibase {
     std::string to_string(Protocol protocol) {
         switch (protocol) {
-            case Protocol::Identity:
-                return "Identity";
-            case Protocol::Base2:
-                return "Base2";
-            case Protocol::Base8:
-                return "Base8";
-            case Protocol::Base10:
-                return "Base10";
-            case Protocol::Base16:
-                return "Base16";
-            case Protocol::Base16Upper:
-                return "Base16Upper";
-            case Protocol::Base32Hex:
-                return "Base32Hex";
-            case Protocol::Base32HexUpper:
-                return "Base32HexUpper";
-            case Protocol::Base32HexPad:
-                return "Base32HexPad";
-            case Protocol::Base32HexPadUpper:
-                return "Base32HexPadUpper";
-            case Protocol::Base32:
-                return "Base32";
-            case Protocol::Base32Upper:
-                return "Base32Upper";
-            case Protocol::Base32Pad:
-                return "Base32Pad";
-            case Protocol::Base32PadUpper:
-                return "Base32PadUpper";
-            case Protocol::Base32Z:
-                return "Base32Z";
-            case Protocol::Base58Flickr:
-                return "Base58Flickr";
-            case Protocol::Base58Btc:
-                return "Base58Btc";
-            case Protocol::Base64:
-                return "Base64";
-            case Protocol::Base64Pad:
-                return "Base64Pad";
-            case Protocol::Base64Url:
-                return "Base64Url";
-            case Protocol::Base64UrlPad:
-                return "Base64UrlPad";
+        case Protocol::Identity:
+            return "Identity";
+        case Protocol::Base2:
+            return "Base2";
+        case Protocol::Base8:
+            return "Base8";
+        case Protocol::Base10:
+            return "Base10";
+        case Protocol::Base16:
+            return "Base16";
+        case Protocol::Base16Upper:
+            return "Base16Upper";
+        case Protocol::Base32Hex:
+            return "Base32Hex";
+        case Protocol::Base32HexUpper:
+            return "Base32HexUpper";
+        case Protocol::Base32HexPad:
+            return "Base32HexPad";
+        case Protocol::Base32HexPadUpper:
+            return "Base32HexPadUpper";
+        case Protocol::Base32:
+            return "Base32";
+        case Protocol::Base32Upper:
+            return "Base32Upper";
+        case Protocol::Base32Pad:
+            return "Base32Pad";
+        case Protocol::Base32PadUpper:
+            return "Base32PadUpper";
+        case Protocol::Base32Z:
+            return "Base32Z";
+        case Protocol::Base58Flickr:
+            return "Base58Flickr";
+        case Protocol::Base58Btc:
+            return "Base58Btc";
+        case Protocol::Base64:
+            return "Base64";
+        case Protocol::Base64Pad:
+            return "Base64Pad";
+        case Protocol::Base64Url:
+            return "Base64Url";
+        case Protocol::Base64UrlPad:
+            return "Base64UrlPad";
         }
 
         // if not found, throw
