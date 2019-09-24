@@ -103,7 +103,7 @@ namespace {
         std::make_pair(Protocol::Base64Pad, std::regex{"^u[0-9a-zA-Z+/=]*$"}),
         std::make_pair(Protocol::Base64Url, std::regex{"^u[0-9a-zA-Z_-]*$"}),
         std::make_pair(Protocol::Base64UrlPad,
-                       std::regex{"^u[0-9a-zA-Z+/=]*$"})};
+                       std::regex{"^u[0-9a-zA-Z_=-]*$"})};
 
     Protocol validate(std::string const& str) {
         auto protocol = get_protocol(str);
@@ -407,25 +407,90 @@ namespace {
         decode_upper<Protocol::Base16>(input, output, (input.size() - 1) / 2);
     }
 
+    // Base64Pad
+    template <>
+    void encode<Protocol::Base64Pad>(std::vector<std::uint8_t> const& input,
+                                     std::string& output) {
+        if (input.empty()) {
+            output = "M";
+            return;
+        }
+
+        std::vector<std::uint8_t> buf;
+        std::fill_n(std::back_inserter(buf),
+                    (((input.size() - 1) / 3) + 1) * 4 + 2, 0);
+        buf[0] = 'M';
+        EVP_EncodeBlock(buf.data() + 1, input.data(), input.size());
+        output = std::string{buf.begin(), std::prev(buf.end())};
+    }
+
+    template <>
+    void decode<Protocol::Base64Pad>(std::string const& input,
+                                     std::vector<std::uint8_t>& output) {}
+
     // Base64
     template <>
     void encode<Protocol::Base64>(std::vector<std::uint8_t> const& input,
                                   std::string& output) {
-        std::vector<std::uint8_t> buf;
-        std::fill_n(std::back_inserter(buf), input.size() * 4 / 3 + 3, 0);
-        buf[0] = 'm';
-        EVP_EncodeBlock(buf.data() + 1, input.data(), input.size());
-        output =
-            std::string{buf.begin(), std::find_if(buf.begin(), buf.end(),
-                [](auto& elem){
-                    return elem == '\0' || elem == '=';
-                })};
+        if (input.empty()) {
+            output = "m";
+            return;
+        }
+
+        encode<Protocol::Base64Pad>(input, output);
+        output[0] = 'm';
+        while (output.back() == '=')
+            output.pop_back();
     }
 
     template <>
     void decode<Protocol::Base64>(std::string const& input,
-                                  std::vector<std::uint8_t>& output) {
+                                  std::vector<std::uint8_t>& output) {}
+    // Base64UrlPad
+    template <>
+    void encode<Protocol::Base64UrlPad>(std::vector<std::uint8_t> const& input,
+                                        std::string& output) {
+        if (input.empty()) {
+            output = "U";
+            return;
+        }
+
+        encode<Protocol::Base64Pad>(input, output);
+        output[0] = 'U';
+        std::transform(output.begin(), output.end(), output.begin(),
+                       [](auto& elem) {
+                           switch (elem) {
+                           case '+':
+                               return '-';
+                           case '/':
+                               return '_';
+                           default:
+                               return elem;
+                           }
+                       });
     }
+
+    template <>
+    void decode<Protocol::Base64UrlPad>(std::string const& input,
+                                        std::vector<std::uint8_t>& output) {}
+
+    template <>
+    void encode<Protocol::Base64Url>(std::vector<std::uint8_t> const& input,
+                                        std::string& output) {
+        if (input.empty()) {
+            output = "u";
+            return;
+        }
+
+        encode<Protocol::Base64UrlPad>(input, output);
+        output[0] = 'u';
+        while (output.back() == '=')
+            output.pop_back();
+    }
+
+    template <>
+    void decode<Protocol::Base64Url>(std::string const& input,
+                                        std::vector<std::uint8_t>& output) {}
 
     struct Coder {
         using Encoder = void (*)(std::vector<std::uint8_t> const&,
@@ -448,6 +513,9 @@ namespace {
         make_coder_entry<Protocol::Base8>(),
         make_coder_entry<Protocol::Base16>(),
         make_coder_entry<Protocol::Base64>(),
+        make_coder_entry<Protocol::Base64Pad>(),
+        make_coder_entry<Protocol::Base64Url>(),
+        make_coder_entry<Protocol::Base64UrlPad>(),
         make_coder_entry<Protocol::Base16Upper>()};
 
     auto find_coder(Protocol protocol) {
@@ -459,6 +527,56 @@ namespace {
 } // namespace
 
 namespace Multiformats::Multibase {
+    std::string to_string(Protocol protocol) {
+        switch (protocol) {
+            case Protocol::Identity:
+                return "Identity";
+            case Protocol::Base2:
+                return "Base2";
+            case Protocol::Base8:
+                return "Base8";
+            case Protocol::Base10:
+                return "Base10";
+            case Protocol::Base16:
+                return "Base16";
+            case Protocol::Base16Upper:
+                return "Base16Upper";
+            case Protocol::Base32Hex:
+                return "Base32Hex";
+            case Protocol::Base32HexUpper:
+                return "Base32HexUpper";
+            case Protocol::Base32HexPad:
+                return "Base32HexPad";
+            case Protocol::Base32HexPadUpper:
+                return "Base32HexPadUpper";
+            case Protocol::Base32:
+                return "Base32";
+            case Protocol::Base32Upper:
+                return "Base32Upper";
+            case Protocol::Base32Pad:
+                return "Base32Pad";
+            case Protocol::Base32PadUpper:
+                return "Base32PadUpper";
+            case Protocol::Base32Z:
+                return "Base32Z";
+            case Protocol::Base58Flickr:
+                return "Base58Flickr";
+            case Protocol::Base58Btc:
+                return "Base58Btc";
+            case Protocol::Base64:
+                return "Base64";
+            case Protocol::Base64Pad:
+                return "Base64Pad";
+            case Protocol::Base64Url:
+                return "Base64Url";
+            case Protocol::Base64UrlPad:
+                return "Base64UrlPad";
+        }
+
+        // if not found, throw
+        throw std::runtime_error("unknown protocol to_string");
+    }
+
     std::vector<std::uint8_t> decode(std::string const& str) {
         auto protocol = validate(str);
         std::vector<std::uint8_t> ret;

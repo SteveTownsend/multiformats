@@ -169,4 +169,8 @@ TEST_P(MultibaseParamTestFixture, CompatibilityDecode) {
 }
 
 INSTANTIATE_TEST_CASE_P(MultibaseTests, MultibaseParamTestFixture,
-                        ::testing::ValuesIn(parameters));
+                        ::testing::ValuesIn(parameters), [](auto& param_info) {
+                            return Multiformats::Multibase::to_string(
+                                       param_info.param.protocol) +
+                                   "_" + std::to_string(param_info.index);
+                        });
