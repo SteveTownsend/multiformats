@@ -43,7 +43,10 @@ std::vector<Parameter> const parameters{
     {Protocol::Base10, {0x00, 0x00, 0xff}, "900255"},
     {Protocol::Base10, {0x01, 0x00}, "9256"},
     {Protocol::Base10, {0x00, 0x01, 0x00}, "90256"},
+    {Protocol::Base10, {100}, "9100"},
     {Protocol::Base10, {0xff, 0xff, 0xff}, "916777215"},
+    {Protocol::Base10, {243}, "9243"},
+    {Protocol::Base10, {0xfe, 0xdc}, "965244"},
     {Protocol::Base16, yes_mani, "f796573206d616e692021"},
     {Protocol::Base16Upper, yes_mani, "F796573206D616E692021"},
 

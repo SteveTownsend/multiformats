@@ -79,42 +79,35 @@ namespace {
         throw std::runtime_error("invalid protocol");
     }
 
-    std::unordered_map<Protocol, std::regex> const patterns{
-        std::make_pair(Protocol::Identity, std::regex{"^.*$"}),
-        std::make_pair(Protocol::Base2, std::regex{"^0[0-1]*$"}),
-        std::make_pair(Protocol::Base8, std::regex{"^7[0-7]*$"}),
-        std::make_pair(Protocol::Base10, std::regex{"^9[0-9]*$"}),
-        std::make_pair(Protocol::Base16, std::regex{"^f[0-9a-f]*"}),
-        std::make_pair(Protocol::Base16Upper, std::regex{"^F[0-9A-F]*$"}),
-        std::make_pair(Protocol::Base32Hex, std::regex{"^v[0-9a-v]*$"}),
-        std::make_pair(Protocol::Base32HexUpper, std::regex{"^V[0-9A-V]*$"}),
-        std::make_pair(Protocol::Base32HexPad, std::regex{"^t[0-9a-v=]*$"}),
-        std::make_pair(Protocol::Base32HexPadUpper,
-                       std::regex{"^T[0-9A-V=]*$"}),
-        std::make_pair(Protocol::Base32, std::regex{"^b[2-7a-z]*$"}),
-        std::make_pair(Protocol::Base32Upper, std::regex{"^B[2-7A-Z]*$"}),
-        std::make_pair(Protocol::Base32Pad, std::regex{"^c[2-7a-z=]*$"}),
-        std::make_pair(Protocol::Base32PadUpper,
-                       std::regex{"^C[2-7A-Z=]*$^C[2-7A-Z=]*$"}),
-        std::make_pair(Protocol::Base32Z, std::regex{"^h[13-7a-km-uw-z]*$"}),
-        std::make_pair(Protocol::Base58Flickr,
-                       std::regex{"^Z[1-9A-HJ-Za-km-z]*$"}),
-        std::make_pair(Protocol::Base58Btc,
-                       std::regex{"^(z|1|Q)[1-9A-HJ-Za-km-z]*$"}),
-        std::make_pair(Protocol::Base64, std::regex{"^u[0-9a-zA-Z+/]*$"}),
-        std::make_pair(Protocol::Base64Pad, std::regex{"^u[0-9a-zA-Z+/=]*$"}),
-        std::make_pair(Protocol::Base64Url, std::regex{"^u[0-9a-zA-Z_-]*$"}),
-        std::make_pair(Protocol::Base64UrlPad,
-                       std::regex{"^u[0-9a-zA-Z_=-]*$"})};
+    std::array const patterns{std::regex{"^.*$"},
+                              std::regex{"^0[0-1]*$"},
+                              std::regex{"^7[0-7]*$"},
+                              std::regex{"^9[0-9]*$"},
+                              std::regex{"^f[0-9a-f]*"},
+                              std::regex{"^F[0-9A-F]*$"},
+                              std::regex{"^v[0-9a-v]*$"},
+                              std::regex{"^V[0-9A-V]*$"},
+                              std::regex{"^t[0-9a-v=]*$"},
+                              std::regex{"^T[0-9A-V=]*$"},
+                              std::regex{"^b[2-7a-z]*$"},
+                              std::regex{"^B[2-7A-Z]*$"},
+                              std::regex{"^c[2-7a-z=]*$"},
+                              std::regex{"^C[2-7A-Z=]*$^C[2-7A-Z=]*$"},
+                              std::regex{"^h[13-7a-km-uw-z]*$"},
+                              std::regex{"^Z[1-9A-HJ-Za-km-z]*$"},
+                              std::regex{"^(z|1|Q)[1-9A-HJ-Za-km-z]*$"},
+                              std::regex{"^u[0-9a-zA-Z+/]*$"},
+                              std::regex{"^u[0-9a-zA-Z+/=]*$"},
+                              std::regex{"^u[0-9a-zA-Z_-]*$"},
+                              std::regex{"^u[0-9a-zA-Z_=-]*$"}};
 
     Protocol validate(std::string const& str) {
         auto protocol = get_protocol(str);
-        auto it = patterns.find(protocol);
-
-        if (it == patterns.end())
+        if (patterns.size() < static_cast<std::uint32_t>(protocol))
             throw std::runtime_error("unknown protocol");
 
-        std::regex pattern = it->second;
+        std::regex pattern = patterns[static_cast<std::uint32_t>(protocol)];
+
         if (!std::regex_match(str, pattern))
             throw std::runtime_error("invalid characters for protocol");
 
@@ -308,47 +301,69 @@ namespace {
     template <>
     void encode<Protocol::Base10>(std::vector<std::uint8_t> const& input,
                                   std::string& output) {
-        // FIXME: not working yet
-        std::uint32_t const max{1000000};
+        std::uint8_t const mask{0x7};
 
-        if (input.size() == 1) {
+        if (input.empty()) {
             output.push_back('9');
             return;
         }
 
-        std::vector<std::uint32_t> buf;
         std::uint32_t overflow{0};
-        std::size_t leading_zeros{0};
 
-        for (auto it = input.cbegin(); it != input.cend() && *it == 0; ++it)
-            leading_zeros++;
+        auto it = input.cbegin();
+        while (it != input.cend() && *it == 0)
+            ++it;
 
-        for (auto it = input.crbegin();
-             it != std::prev(input.crend(), leading_zeros); ++it) {
-            auto mod = std::distance(input.crbegin(), it) % 3;
+        auto leading_zeros = std::distance(input.cbegin(), it);
+        std::uint8_t bit{7};
+        while ((*it & (1 << bit)) == 0 && bit)
+            bit--;
 
-            if (mod == 0)
-                buf.push_back(overflow);
+        std::vector<std::uint32_t> buf{0};
 
-            buf.back() += static_cast<std::uint32_t>(*it) << (8 * mod);
+        // double dabble algorithm
+        for (; it != input.cend(); ++it) {
+            for (; bit < 8; bit--) {
+                // add 3
+                for (auto& elem : buf) {
+                    for (int i = 0; i < 32; i += 4) {
+                        std::uint32_t msk = 0xf;
+                        std::uint32_t min = 4;
+                        std::uint32_t offset = 3;
 
-            if (mod == 2) {
-                overflow = buf.back() / max;
-                buf.back() = buf.back() % max;
+                        if ((elem & (msk << i)) > (min << i))
+                            elem += (offset << i);
+                    }
+                }
+
+                // check to see if a new word is required
+                if (buf.back() & (1 << 31))
+                    buf.push_back(0);
+
+                // shift
+                bool overflow = (*it & (1 << bit)) != 0;
+                for (auto& elem : buf) {
+                    bool tmp = static_cast<bool>(elem & (1 << 31));
+                    elem = (elem << 1) | overflow;
+                    overflow = tmp;
+                }
             }
+
+            bit &= mask;
         }
 
         // formatting output
         std::stringstream ss;
-        auto it = buf.crbegin();
 
+        // print leading zeros
         ss << '9';
         for (auto i = 0; i < leading_zeros; i++)
             ss << '0';
 
-        ss << *(it++) << std::setfill('0') << std::setw(2);
-        for (; it != buf.crend(); ++it)
-            ss << *it;
+        auto buf_it = buf.crbegin();
+        ss << std::hex << *(buf_it++) << std::setfill('0') << std::setw(2);
+        for (; buf_it != buf.crend(); ++buf_it)
+            ss << *buf_it;
 
         output = ss.str();
     }
@@ -532,6 +547,8 @@ namespace {
     void decode<Protocol::Base32Z>(std::string const& input,
                                    std::vector<std::uint8_t>& output) {}
 
+    // Base58 Stuff goes here
+
     // Base64Pad
     template <>
     void encode<Protocol::Base64Pad>(std::vector<std::uint8_t> const& input,
@@ -651,6 +668,7 @@ namespace {
         make_coder_entry<Protocol::Identity>(),
         make_coder_entry<Protocol::Base2>(),
         make_coder_entry<Protocol::Base8>(),
+        make_coder_entry<Protocol::Base10>(),
         make_coder_entry<Protocol::Base16>(),
         make_upper_coder_entry<Protocol::Base16Upper, Protocol::Base16>(),
         make_coder_entry<Protocol::Base32Hex>(),
