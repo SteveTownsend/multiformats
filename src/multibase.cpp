@@ -37,10 +37,8 @@ namespace {
     std::tuple<std::size_t, Iterator> count_zeros(Iterator begin,
                                                   Iterator end) {
         Iterator ret = begin;
-        while ((*ret) == 0 && ret != end) {
-            std::cout << static_cast<int>(*ret) << std::endl;
+        while ((*ret) == 0 && ret != end)
             ++ret;
-        }
 
         return {std::distance(begin, ret), ret};
     }
@@ -113,7 +111,7 @@ namespace {
                               std::regex{"^b[2-7a-z]*$"},
                               std::regex{"^B[2-7A-Z]*$"},
                               std::regex{"^c[2-7a-z=]*$"},
-                              std::regex{"^C[2-7A-Z=]*$^C[2-7A-Z=]*$"},
+                              std::regex{"^C[2-7A-Z=]*$"},
                               std::regex{"^h[13-7a-km-uw-z]*$"},
                               std::regex{"^Z[1-9A-HJ-Za-km-z]*$"},
                               std::regex{"^(z|1|Q)[1-9A-HJ-Za-km-z]*$"},
@@ -458,8 +456,7 @@ namespace {
                                      'o', 't', '1', 'u', 'w', 'i', 's', 'z',
                                      'a', '3', '4', '5', 'h', '7', '6', '9'};
 
-    template <bool padding>
-    void base32_encode(std::array<char, 32> const& lookup,
+    void base32_encode(std::array<char, 32> const& lookup, bool padding,
                        std::vector<std::uint8_t> const& input,
                        std::string& output) {
         std::uint8_t const mask{0x1f};
@@ -499,7 +496,7 @@ namespace {
             offset &= 0x7;
         }
 
-        if constexpr (padding) {
+        if (padding) {
             auto mod = (output.size() - 1) % 8;
             std::size_t pads = mod == 0 ? 0 : 8 - mod;
             std::fill_n(inserter, pads, '=');
@@ -508,66 +505,109 @@ namespace {
 
     void base32_decode(std::array<char, 32> const& lookup, bool padding,
                        std::string const& input,
-                       std::vector<std::uint8_t>& output) {}
+                       std::vector<std::uint8_t>& output) {
+
+        std::size_t padding_count{};
+        if (padding) {
+            for (auto it = input.crbegin(); *it == '=' && it != input.crend();
+                 ++it)
+                ++padding_count;
+        }
+
+        std::size_t size{(input.size() - padding_count - 1) * 5 / 8};
+        std::fill_n(std::back_inserter(output), size, 0);
+
+        std::uint8_t offset{3};
+        std::uint8_t overflow{};
+        auto end =
+            padding ? std::prev(input.cend(), padding_count) : input.cend();
+        auto out = output.begin();
+
+        for (auto it = std::next(input.cbegin()); it != end; ++it) {
+            std::uint8_t value =
+                std::distance(lookup.cbegin(),
+                              std::find(lookup.cbegin(), lookup.cend(), *it));
+            *out |= value << offset;
+
+            auto carry_back = value >> (8 - offset);
+            if (offset > 3 && out != output.begin())
+                *std::prev(out) |= carry_back;
+
+            if (offset < 5)
+                ++out;
+
+            offset = (offset - 5) & 0x7;
+        }
+    }
 
     // Base32Hex
     template <>
     void encode<Protocol::Base32Hex>(std::vector<std::uint8_t> const& input,
                                      std::string& output) {
-        base32_encode<false>(base32_hex_lookup, input, output);
+        base32_encode(base32_hex_lookup, false, input, output);
         output.front() = 'v';
     }
 
     template <>
     void decode<Protocol::Base32Hex>(std::string const& input,
-                                     std::vector<std::uint8_t>& output) {}
+                                     std::vector<std::uint8_t>& output) {
+        base32_decode(base32_hex_lookup, false, input, output);
+    }
 
     // Base32HexPad
     template <>
     void encode<Protocol::Base32HexPad>(std::vector<std::uint8_t> const& input,
                                         std::string& output) {
-        base32_encode<true>(base32_hex_lookup, input, output);
+        base32_encode(base32_hex_lookup, true, input, output);
         output.front() = 't';
     }
 
     template <>
     void decode<Protocol::Base32HexPad>(std::string const& input,
-                                        std::vector<std::uint8_t>& output) {}
+                                        std::vector<std::uint8_t>& output) {
+        base32_decode(base32_hex_lookup, true, input, output);
+    }
 
     // Base32
     template <>
     void encode<Protocol::Base32>(std::vector<std::uint8_t> const& input,
                                   std::string& output) {
-        base32_encode<false>(base32_lookup, input, output);
+        base32_encode(base32_lookup, false, input, output);
     }
 
     template <>
     void decode<Protocol::Base32>(std::string const& input,
-                                  std::vector<std::uint8_t>& output) {}
+                                  std::vector<std::uint8_t>& output) {
+        base32_decode(base32_lookup, false, input, output);
+    }
 
     // Base32Pad
     template <>
     void encode<Protocol::Base32Pad>(std::vector<std::uint8_t> const& input,
                                      std::string& output) {
-        base32_encode<true>(base32_lookup, input, output);
+        base32_encode(base32_lookup, true, input, output);
         output.front() = 'c';
     }
 
     template <>
     void decode<Protocol::Base32Pad>(std::string const& input,
-                                     std::vector<std::uint8_t>& output) {}
+                                     std::vector<std::uint8_t>& output) {
+        base32_decode(base32_lookup, true, input, output);
+    }
 
     // Base32Z
     template <>
     void encode<Protocol::Base32Z>(std::vector<std::uint8_t> const& input,
                                    std::string& output) {
-        base32_encode<false>(base32_z_lookup, input, output);
+        base32_encode(base32_z_lookup, false, input, output);
         output.front() = 'h';
     }
 
     template <>
     void decode<Protocol::Base32Z>(std::string const& input,
-                                   std::vector<std::uint8_t>& output) {}
+                                   std::vector<std::uint8_t>& output) {
+        base32_decode(base32_z_lookup, false, input, output);
+    }
 
     // Base58 Stuff goes here
     template <typename InputIt, typename OutputIt>
@@ -760,7 +800,6 @@ namespace {
     }
 
     std::unordered_map<Protocol, Coder> const coders{
-        make_coder_entry<Protocol::Identity>(),
         make_coder_entry<Protocol::Base2>(),
         make_coder_entry<Protocol::Base8>(),
         make_coder_entry<Protocol::Base10>(),
