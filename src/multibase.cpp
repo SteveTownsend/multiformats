@@ -24,6 +24,27 @@
 namespace {
     using namespace Multiformats::Multibase;
 
+    template <typename T>
+    constexpr T ceil_division(T numerator, T denominator) {
+        return (numerator + denominator - 1) / denominator;
+    }
+
+    /**
+     * Count consecutive zeros in a sequence, return count and end iterator of
+     * zeros.
+     */
+    template <typename Iterator>
+    std::tuple<std::size_t, Iterator> count_zeros(Iterator begin,
+                                                  Iterator end) {
+        Iterator ret = begin;
+        while ((*ret) == 0 && ret != end) {
+            std::cout << static_cast<int>(*ret) << std::endl;
+            ++ret;
+        }
+
+        return {std::distance(begin, ret), ret};
+    }
+
     Protocol get_protocol(std::string const& str) {
         if (str.empty())
             throw std::runtime_error("can't get protocol for empty string");
@@ -188,7 +209,7 @@ namespace {
                 if (*it == '1')
                     value |= 1 << (bit - 1);
                 else if (*it != '0')
-                    throw std::runtime_error("nope");
+                    throw std::runtime_error("invalid character type");
 
                 it++;
             }
@@ -437,7 +458,8 @@ namespace {
                                      'o', 't', '1', 'u', 'w', 'i', 's', 'z',
                                      'a', '3', '4', '5', 'h', '7', '6', '9'};
 
-    void base32_encode(std::array<char, 32> const& lookup, bool padding,
+    template <bool padding>
+    void base32_encode(std::array<char, 32> const& lookup,
                        std::vector<std::uint8_t> const& input,
                        std::string& output) {
         std::uint8_t const mask{0x1f};
@@ -477,7 +499,7 @@ namespace {
             offset &= 0x7;
         }
 
-        if (padding) {
+        if constexpr (padding) {
             auto mod = (output.size() - 1) % 8;
             std::size_t pads = mod == 0 ? 0 : 8 - mod;
             std::fill_n(inserter, pads, '=');
@@ -492,7 +514,7 @@ namespace {
     template <>
     void encode<Protocol::Base32Hex>(std::vector<std::uint8_t> const& input,
                                      std::string& output) {
-        base32_encode(base32_hex_lookup, false, input, output);
+        base32_encode<false>(base32_hex_lookup, input, output);
         output.front() = 'v';
     }
 
@@ -504,7 +526,7 @@ namespace {
     template <>
     void encode<Protocol::Base32HexPad>(std::vector<std::uint8_t> const& input,
                                         std::string& output) {
-        base32_encode(base32_hex_lookup, true, input, output);
+        base32_encode<true>(base32_hex_lookup, input, output);
         output.front() = 't';
     }
 
@@ -516,7 +538,7 @@ namespace {
     template <>
     void encode<Protocol::Base32>(std::vector<std::uint8_t> const& input,
                                   std::string& output) {
-        base32_encode(base32_lookup, false, input, output);
+        base32_encode<false>(base32_lookup, input, output);
     }
 
     template <>
@@ -527,7 +549,7 @@ namespace {
     template <>
     void encode<Protocol::Base32Pad>(std::vector<std::uint8_t> const& input,
                                      std::string& output) {
-        base32_encode(base32_lookup, true, input, output);
+        base32_encode<true>(base32_lookup, input, output);
         output.front() = 'c';
     }
 
@@ -539,7 +561,7 @@ namespace {
     template <>
     void encode<Protocol::Base32Z>(std::vector<std::uint8_t> const& input,
                                    std::string& output) {
-        base32_encode(base32_z_lookup, false, input, output);
+        base32_encode<false>(base32_z_lookup, input, output);
         output.front() = 'h';
     }
 
@@ -548,6 +570,79 @@ namespace {
                                    std::vector<std::uint8_t>& output) {}
 
     // Base58 Stuff goes here
+    template <typename InputIt, typename OutputIt>
+    auto switch_case(InputIt begin, InputIt end, OutputIt out) {
+        return std::transform(begin, end, out, [](auto& elem) {
+            if (std::islower(elem))
+                return static_cast<char>(std::toupper(elem));
+            else if (std::isupper(elem))
+                return static_cast<char>(std::tolower(elem));
+            else
+                return elem;
+        });
+    }
+
+    std::array const base58_btc_lookup{
+        '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C',
+        'D', 'E', 'F', 'G', 'H', 'J', 'K', 'L', 'M', 'N', 'P', 'Q',
+        'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z', 'a', 'b', 'c',
+        'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'm', 'n', 'o', 'p',
+        'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z'};
+
+    std::array const base58_flickr_lookup{
+        '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c',
+        'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'm', 'n', 'o', 'p',
+        'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z', 'A', 'B',
+        'C', 'D', 'E', 'F', 'G', 'H', 'J', 'K', 'L', 'M', 'N', 'P',
+        'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z'};
+
+    void base58_encode(std::array<char, 58> const& lookup,
+                       std::vector<std::uint8_t> const& input,
+                       std::string& output) {
+
+        auto [leading_zeros, it] = count_zeros(input.cbegin(), input.cend());
+        std::vector<std::uint8_t> buf;
+        std::size_t size = (std::distance(it, input.cend()) * 138 / 100) + 1;
+        std::fill_n(std::back_inserter(buf), size, 0);
+
+        std::uint32_t carry{};
+        for (; it != input.cend(); ++it) {
+            carry = *it;
+            for (auto it_buf = buf.rbegin(); it_buf != buf.rend(); ++it_buf) {
+                carry += 256 * (*it_buf);
+                *it_buf = carry % 58;
+                carry = carry / 58;
+            }
+        }
+
+        output.reserve(leading_zeros + buf.size());
+        auto inserter = std::back_inserter(output);
+        inserter = ' ';
+        std::fill_n(inserter, leading_zeros, '1');
+        std::transform(buf.cbegin(), buf.cend(), inserter,
+                       [&](auto& elem) { return lookup[elem]; });
+    }
+
+    template <>
+    void encode<Protocol::Base58Btc>(std::vector<std::uint8_t> const& input,
+                                     std::string& output) {
+        base58_encode(base58_btc_lookup, input, output);
+        output.front() = 'z';
+    }
+
+    template <>
+    void decode<Protocol::Base58Btc>(std::string const& input,
+                                     std::vector<std::uint8_t>& output) {}
+    template <>
+    void encode<Protocol::Base58Flickr>(std::vector<std::uint8_t> const& input,
+                                        std::string& output) {
+        base58_encode(base58_flickr_lookup, input, output);
+        output.front() = 'Z';
+    }
+
+    template <>
+    void decode<Protocol::Base58Flickr>(std::string const& input,
+                                        std::vector<std::uint8_t>& output) {}
 
     // Base64Pad
     template <>
@@ -680,6 +775,8 @@ namespace {
         make_upper_coder_entry<Protocol::Base32Upper, Protocol::Base32>(),
         make_coder_entry<Protocol::Base32Pad>(),
         make_upper_coder_entry<Protocol::Base32PadUpper, Protocol::Base32Pad>(),
+        make_coder_entry<Protocol::Base58Btc>(),
+        make_coder_entry<Protocol::Base58Flickr>(),
         make_coder_entry<Protocol::Base32Z>(),
         make_coder_entry<Protocol::Base64>(),
         make_coder_entry<Protocol::Base64Pad>(),
