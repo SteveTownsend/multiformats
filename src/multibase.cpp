@@ -43,6 +43,17 @@ namespace {
         return {std::distance(begin, ret), ret};
     }
 
+    template <typename Iterator, typename Value>
+    std::tuple<std::size_t, Iterator>
+    count_consecutive(Iterator begin, Iterator end, Value value) {
+
+        Iterator ret = begin;
+        while (*ret == value && ret != end)
+            ++ret;
+
+        return {std::distance(begin, ret), ret};
+    }
+
     Protocol get_protocol(std::string const& str) {
         if (str.empty())
             throw std::runtime_error("can't get protocol for empty string");
@@ -115,10 +126,10 @@ namespace {
                               std::regex{"^h[13-7a-km-uw-z]*$"},
                               std::regex{"^Z[1-9A-HJ-Za-km-z]*$"},
                               std::regex{"^(z|1|Q)[1-9A-HJ-Za-km-z]*$"},
-                              std::regex{"^u[0-9a-zA-Z+/]*$"},
-                              std::regex{"^u[0-9a-zA-Z+/=]*$"},
+                              std::regex{"^m[0-9a-zA-Z+/]*$"},
+                              std::regex{"^M[0-9a-zA-Z+/=]*$"},
                               std::regex{"^u[0-9a-zA-Z_-]*$"},
-                              std::regex{"^u[0-9a-zA-Z_=-]*$"}};
+                              std::regex{"^U[0-9a-zA-Z_=-]*$"}};
 
     Protocol validate(std::string const& str) {
         auto protocol = get_protocol(str);
@@ -685,6 +696,34 @@ namespace {
                                         std::vector<std::uint8_t>& output) {}
 
     // Base64Pad
+    std::string add_padding(std::string const& input) {
+        std::string tmp{input};
+        std::fill_n(std::back_inserter(tmp), 4 - ((input.size() - 1) % 4), '=');
+        return tmp;
+    }
+
+    auto to_url = [](auto& elem) {
+        switch (elem) {
+        case '+':
+            return '-';
+        case '/':
+            return '_';
+        default:
+            return elem;
+        }
+    };
+
+    auto from_url = [](auto& elem) {
+        switch (elem) {
+        case '-':
+            return '+';
+        case '_':
+            return '/';
+        default:
+            return elem;
+        }
+    };
+
     template <>
     void encode<Protocol::Base64Pad>(std::vector<std::uint8_t> const& input,
                                      std::string& output) {
@@ -703,7 +742,17 @@ namespace {
 
     template <>
     void decode<Protocol::Base64Pad>(std::string const& input,
-                                     std::vector<std::uint8_t>& output) {}
+                                     std::vector<std::uint8_t>& output) {
+        auto [padding_count, it] =
+            count_consecutive(input.crbegin(), input.crend(), '=');
+        std::fill_n(std::back_inserter(output),
+                    ((input.size() - padding_count - 1) * 3) / 4, 0);
+        if (EVP_DecodeBlock(
+                output.data(),
+                reinterpret_cast<unsigned const char*>(input.c_str() + 1),
+                input.size() - 1) == -1)
+            throw std::runtime_error("decoding error");
+    }
 
     // Base64
     template <>
@@ -722,7 +771,9 @@ namespace {
 
     template <>
     void decode<Protocol::Base64>(std::string const& input,
-                                  std::vector<std::uint8_t>& output) {}
+                                  std::vector<std::uint8_t>& output) {
+        decode<Protocol::Base64Pad>(add_padding(input), output);
+    }
     // Base64UrlPad
     template <>
     void encode<Protocol::Base64UrlPad>(std::vector<std::uint8_t> const& input,
@@ -733,23 +784,18 @@ namespace {
         }
 
         encode<Protocol::Base64Pad>(input, output);
-        output[0] = 'U';
-        std::transform(output.begin(), output.end(), output.begin(),
-                       [](auto& elem) {
-                           switch (elem) {
-                           case '+':
-                               return '-';
-                           case '/':
-                               return '_';
-                           default:
-                               return elem;
-                           }
-                       });
+        output.front() = 'U';
+        std::transform(output.begin(), output.end(), output.begin(), to_url);
     }
 
     template <>
     void decode<Protocol::Base64UrlPad>(std::string const& input,
-                                        std::vector<std::uint8_t>& output) {}
+                                        std::vector<std::uint8_t>& output) {
+        std::string tmp;
+        std::transform(input.cbegin(), input.cend(), std::back_inserter(tmp),
+                       from_url);
+        decode<Protocol::Base64Pad>(tmp, output);
+    }
 
     // Base64Url
     template <>
@@ -768,7 +814,12 @@ namespace {
 
     template <>
     void decode<Protocol::Base64Url>(std::string const& input,
-                                     std::vector<std::uint8_t>& output) {}
+                                     std::vector<std::uint8_t>& output) {
+        std::string tmp;
+        std::transform(input.cbegin(), input.cend(), std::back_inserter(tmp),
+                       from_url);
+        decode<Protocol::Base64Pad>(add_padding(tmp), output);
+    }
 
     struct Coder {
         using Encoder = void (*)(std::vector<std::uint8_t> const&,
