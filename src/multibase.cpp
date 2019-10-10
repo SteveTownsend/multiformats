@@ -30,19 +30,9 @@ namespace {
     }
 
     /**
-     * Count consecutive zeros in a sequence, return count and end iterator of
+     * Count consecutive values in a sequence, return count and end iterator of
      * zeros.
      */
-    template <typename Iterator>
-    std::tuple<std::size_t, Iterator> count_zeros(Iterator begin,
-                                                  Iterator end) {
-        Iterator ret = begin;
-        while ((*ret) == 0 && ret != end)
-            ++ret;
-
-        return {std::distance(begin, ret), ret};
-    }
-
     template <typename Iterator, typename Value>
     std::tuple<std::size_t, Iterator>
     count_consecutive(Iterator begin, Iterator end, Value value) {
@@ -327,6 +317,55 @@ namespace {
         }
     }
 
+    // Base16
+    template <>
+    void encode<Protocol::Base16>(std::vector<std::uint8_t> const& input,
+                                  std::string& output) {
+        std::array const characters{'0', '1', '2', '3', '4', '5', '6', '7',
+                                    '8', '9', 'a', 'b', 'c', 'd', 'e', 'f'};
+
+        output.reserve(2 * input.size());
+        auto inserter = std::back_inserter(output);
+        inserter = 'f';
+
+        for (auto elem : input) {
+            inserter = characters[(0xf0 & elem) >> 4];
+            inserter = characters[0x0f & elem];
+        }
+    }
+
+    template <>
+    void decode<Protocol::Base16>(std::string const& input,
+                                  std::vector<std::uint8_t>& output) {
+        if (input.size() % 2 != 1)
+            throw std::runtime_error("incorrect alignment for Base16");
+
+        output.reserve(input.size() / 2);
+
+        auto it = std::next(input.cbegin());
+        auto inserter = std::back_inserter(output);
+        auto convert = [](std::uint8_t num) {
+            std::uint8_t value;
+            if (num > 47 && num < 58)
+                value = num - 48;
+            else if (num > 96 && num < 123)
+                value = num - 87;
+            else
+                throw std::runtime_error("invalid character");
+
+            return value;
+        };
+
+        while (it != input.cend()) {
+            auto ms = *it;
+            ++it;
+            auto ls = *it;
+            ++it;
+
+            inserter = (convert(ms) << 4) | convert(ls);
+        }
+    }
+
     // Base10
     template <>
     void encode<Protocol::Base10>(std::vector<std::uint8_t> const& input,
@@ -339,12 +378,8 @@ namespace {
         }
 
         std::uint32_t overflow{0};
-
-        auto it = input.cbegin();
-        while (it != input.cend() && *it == 0)
-            ++it;
-
-        auto leading_zeros = std::distance(input.cbegin(), it);
+        auto [leading_zeros, it] =
+            count_consecutive(input.cbegin(), input.cend(), 0);
         std::uint8_t bit{7};
         while ((*it & (1 << bit)) == 0 && bit)
             bit--;
@@ -400,55 +435,60 @@ namespace {
 
     template <>
     void decode<Protocol::Base10>(std::string const& input,
-                                  std::vector<std::uint8_t>& output) {}
-
-    // Base16
-    template <>
-    void encode<Protocol::Base16>(std::vector<std::uint8_t> const& input,
-                                  std::string& output) {
-        std::array const characters{'0', '1', '2', '3', '4', '5', '6', '7',
-                                    '8', '9', 'a', 'b', 'c', 'd', 'e', 'f'};
-
-        output.reserve(2 * input.size());
-        auto inserter = std::back_inserter(output);
-        inserter = 'f';
-
-        for (auto elem : input) {
-            inserter = characters[(0xf0 & elem) >> 4];
-            inserter = characters[0x0f & elem];
-        }
-    }
-
-    template <>
-    void decode<Protocol::Base16>(std::string const& input,
                                   std::vector<std::uint8_t>& output) {
-        if (input.size() % 2 != 1)
-            throw std::runtime_error("incorrect alignment for Base16");
+        if (input.size() < 2)
+            return;
 
-        output.reserve(input.size() / 2);
+        auto [leading_zeros, begin] =
+            count_consecutive(std::next(input.cbegin()), input.cend(), '0');
 
-        auto it = std::next(input.cbegin());
-        auto inserter = std::back_inserter(output);
-        auto convert = [](std::uint8_t num) {
-            std::uint8_t value;
-            if (num > 47 && num < 58)
-                value = num - 48;
-            else if (num > 96 && num < 123)
-                value = num - 87;
-            else
-                throw std::runtime_error("invalid character");
+        std::vector<std::uint64_t> buf;
+        auto const bits = std::numeric_limits<decltype(buf)::value_type>::digits;
+        auto const str_width = bits / 4;
 
-            return value;
-        };
-
-        while (it != input.cend()) {
-            auto ms = *it;
-            ++it;
-            auto ls = *it;
-            ++it;
-
-            inserter = (convert(ms) << 4) | convert(ls);
+        auto it = input.cend();
+        while (std::distance(begin, it) > str_width) {
+            it -= str_width;
+            std::string tmp{it, std::next(it, str_width)};
+            buf.push_back(std::stoull(tmp, 0, 16));
         }
+
+        if (std::distance(begin, it) > 0) {
+            std::string tmp{begin, it};
+            buf.push_back(std::stoull(tmp, 0, 16));
+        }
+
+        std::uint8_t bit{};
+        // reverse the double dabble algorithm
+        for (auto bit = 0; std::any_of(buf.cbegin(), buf.cend(),
+                                       [](auto& elem) { return elem != 0; });
+             bit = (bit + 1) & 0x7) {
+
+            if (bit == 0)
+                output.push_back(0);
+
+            // transfer lsb
+            output.back() |= (buf.front() & 0x1) << bit;
+
+            // shift everything
+            std::uint64_t carry{};
+            for (auto it = buf.rbegin(); it != buf.rend(); ++it) {
+                std::uint64_t tmp = *it << (bits - 1);
+                *it = (*it >> 1) | carry;
+                carry = tmp;
+            }
+
+            // subtract 3 from each digit if greater than 7
+            std::uint64_t const mask{0xf};
+            for (auto& elem : buf)
+                for (auto i = 0; i < bits; i += 4)
+                    if (((elem & (mask << i)) >> i) > 7)
+                        elem -= (3ull << i);
+        }
+
+        // add in "leading zeros"
+        std::fill_n(std::back_inserter(output), leading_zeros, 0);
+        std::reverse(output.begin(), output.end());
     }
 
     // Base32 variables / functions
@@ -651,7 +691,8 @@ namespace {
                        std::vector<std::uint8_t> const& input,
                        std::string& output) {
 
-        auto [leading_zeros, it] = count_zeros(input.cbegin(), input.cend());
+        auto [leading_zeros, it] =
+            count_consecutive(input.cbegin(), input.cend(), 0);
         std::vector<std::uint8_t> buf;
         std::size_t size = (std::distance(it, input.cend()) * 138 / 100) + 1;
         std::fill_n(std::back_inserter(buf), size, 0);
