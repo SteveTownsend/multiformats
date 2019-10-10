@@ -9,6 +9,8 @@ environment:
   CONAN_UPLOAD: "https://api.bintray.com/conan/matt1795/public-conan"
   REMOTE_NAME: "remote"
 
+  image:
+    - Visual Studio 2017
   matrix:
     - APPVEYOR_BUILD_WORKER_IMAGE: Visual Studio 2017
       CONAN_VISUAL_VERSIONS: 15
