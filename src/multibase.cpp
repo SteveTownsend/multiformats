@@ -443,7 +443,8 @@ namespace {
             count_consecutive(std::next(input.cbegin()), input.cend(), '0');
 
         std::vector<std::uint64_t> buf;
-        auto const bits = std::numeric_limits<decltype(buf)::value_type>::digits;
+        auto const bits =
+            std::numeric_limits<decltype(buf)::value_type>::digits;
         auto const str_width = bits / 4;
 
         auto it = input.cend();
@@ -715,6 +716,36 @@ namespace {
                        [&](auto& elem) { return lookup[elem]; });
     }
 
+    void base58_decode(std::array<char, 58> const& lookup,
+                       std::string const& input,
+                       std::vector<std::uint8_t>& output) {
+
+        if (input.size() < 2)
+            return;
+
+        auto [leading_zeros, it] =
+            count_consecutive(std::next(input.cbegin()), input.cend(), '1');
+
+        output.push_back(0);
+
+        for (; it != input.cend(); ++it) {
+            std::uint32_t carry =
+                std::distance(lookup.cbegin(),
+                              std::find(lookup.cbegin(), lookup.cend(), *it));
+
+            for (auto i = 0; i < output.size(); ++i) {
+                carry += output[i] * 58;
+                output[i] = carry;
+                carry = carry >> 8;
+                if (i == (output.size() - 1) && carry)
+                    output.push_back(0);
+            }
+        }
+
+        std::fill_n(std::back_inserter(output), leading_zeros, 0);
+        std::reverse(output.begin(), output.end());
+    }
+
     template <>
     void encode<Protocol::Base58Btc>(std::vector<std::uint8_t> const& input,
                                      std::string& output) {
@@ -724,7 +755,9 @@ namespace {
 
     template <>
     void decode<Protocol::Base58Btc>(std::string const& input,
-                                     std::vector<std::uint8_t>& output) {}
+                                     std::vector<std::uint8_t>& output) {
+        base58_decode(base58_btc_lookup, input, output);
+    }
     template <>
     void encode<Protocol::Base58Flickr>(std::vector<std::uint8_t> const& input,
                                         std::string& output) {
@@ -734,7 +767,9 @@ namespace {
 
     template <>
     void decode<Protocol::Base58Flickr>(std::string const& input,
-                                        std::vector<std::uint8_t>& output) {}
+                                        std::vector<std::uint8_t>& output) {
+        base58_decode(base58_flickr_lookup, input, output);
+    }
 
     // Base64Pad
     std::string add_padding(std::string const& input) {
