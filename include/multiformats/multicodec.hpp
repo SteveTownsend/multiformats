@@ -8,7 +8,7 @@
 
 #include "varint.hpp"
 
-#include <map>
+#include <unordered_map>
 
 namespace Multiformats::Multicodec {
     enum class Tag {
@@ -23,7 +23,7 @@ namespace Multiformats::Multicodec {
         Holochain
     };
 
-    std::map<std::string, Varint> table {
+    std::unordered_map<std::string, Varint> const table {
         { "identity", 0x00 },
         { "ip4", 0x04 },
         { "tcp", 0x06 },

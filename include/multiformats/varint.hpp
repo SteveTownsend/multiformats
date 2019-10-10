@@ -53,8 +53,47 @@ class Varint {
 */
     }
 
+    auto size() const {
+        return buf.size();
+    }
+
+    auto begin() const {
+        return buf.cbegin();
+    }
+
+    auto end() const {
+        return buf.cend();
+    }
+
+    operator std::uint64_t() {
+        std::uint64_t ret{};
+        return ret;
+    }
+
     bool operator==(Varint const& varint) {
         return std::equal(buf.cbegin(), buf.cend(), varint.buf.cbegin(),
                           varint.buf.cend());
     }
 };
+
+template <typename Iterator>
+std::tuple<Varint, Iterator> make_varint(Iterator begin, Iterator end) {
+    std::uint64_t tmp{};
+    auto it = begin;
+
+    // find end byte
+    for (; (*it & 0x80) && it != end; ++it);
+
+    if (it == end)
+        throw std::runtime_error("cannot convert to varint");
+
+    if (std::distance(begin, it) > sizeof(tmp))
+        throw std::runtime_error("varint too large");
+
+    auto ret = std::next(it);
+
+    for (auto i = 0; i < std::distance(begin, it); ++i, --it)
+        tmp |= (*it & 0x7f) << (7 * i);
+
+    return {{tmp}, it};
+}
