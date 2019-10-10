@@ -10,7 +10,7 @@ environment:
   REMOTE_NAME: "remote"
 
   image:
-    - Visual Studio 2017
+    - "Visual Studio 2017"
   matrix:
     - APPVEYOR_BUILD_WORKER_IMAGE: Visual Studio 2017
       CONAN_VISUAL_VERSIONS: 15
