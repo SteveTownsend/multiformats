@@ -6,8 +6,11 @@
 
 #pragma once
 
-namespace Multiformat {
-    class Multihash {
+#include <vector>
 
-    };
+#include <cstdint>
+
+namespace Multiformat::Multihash {
+    std::vector<std::uint8_t> encode(std::vector<std::uint8_t> const& buf);
+    std::vector<std::uint8_t> decode(std::vector<std::uint8_t> const& buf);
 }
