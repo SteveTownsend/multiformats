@@ -11,8 +11,13 @@ class MultiformatsConan(ConanFile):
     homepage = "https://multiformats.io/"
     topics = ("<Put some tag here>", "<here>", "<and here>")
     settings = "os", "compiler", "build_type", "arch"
-    generators = "cmake"
+    requires = "OpenSSL/1.1.1b@conan/stable"
+    generators = "cmake_find_package", "cmake"
     exports_sources = "*"
+
+    def configure(self):
+        if self.settings.compiler in ["gcc", "clang"] and self.settings.compiler.libcxx != "libstdc++11":
+            raise Exception("need to use libstdc++11 for compiler.libcxx")
 
     def build(self):
         cmake = CMake(self)
@@ -20,12 +25,11 @@ class MultiformatsConan(ConanFile):
         cmake.build()
 
     def package(self):
-        self.copy("*.h", dst="include", src="hello")
-        self.copy("*hello.lib", dst="lib", keep_path=False)
+        self.copy("include/*.hpp", dst=".")
         self.copy("*.dll", dst="bin", keep_path=False)
         self.copy("*.so", dst="lib", keep_path=False)
         self.copy("*.dylib", dst="lib", keep_path=False)
         self.copy("*.a", dst="lib", keep_path=False)
 
     def package_info(self):
-        self.cpp_info.cppflags = ["-std-c++17"]
+        self.cpp_info.libs = ["multiformats"]
