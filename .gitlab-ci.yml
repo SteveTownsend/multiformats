@@ -51,7 +51,7 @@ image: alpine
 pages:
     stage: deploy
     only:
-     - gitlab-pages
+      - master
     script:
     - apk update && apk add doxygen graphviz
     - doxygen doxygen/Doxyfile
