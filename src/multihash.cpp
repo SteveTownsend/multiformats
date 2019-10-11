@@ -8,31 +8,112 @@
 #include "multiformats/multicodec.hpp"
 #include "multiformats/varint.hpp"
 
-#include "openssl/sha.h"
+#include "openssl/evp.h"
 
 #include <array>
 
 namespace {
     using namespace Multiformats;
+    std::uint64_t const blake2b_512{0xb240};
+    std::uint64_t const blake2s_256{0xb260};
+    std::uint64_t const md4{0xd4};
+    std::uint64_t const md5{0xd5};
     std::uint64_t const sha1{0x11};
+    std::uint64_t const sha2_256{0x12};
+    std::uint64_t const sha2_512{0x13};
+    std::uint64_t const sha3_224{0x17};
+    std::uint64_t const sha3_256{0x16};
+    std::uint64_t const sha3_384{0x15};
+    std::uint64_t const shake_128{0x18};
+    std::uint64_t const shake_256{0x19};
 
+    class OpenSSLHasher {
+        EVP_MD_CTX* ctx;
+
+      public:
+        OpenSSLHasher(EVP_MD const* md)
+            : ctx(EVP_MD_CTX_new()) {
+
+            EVP_DigestInit(ctx, md);
+            if (ctx == nullptr)
+                throw std::invalid_argument(
+                    "OpenSSL doesn't support this hash");
+        }
+
+        OpenSSLHasher(std::string const& hash_name)
+            : OpenSSLHasher(EVP_get_digestbyname(hash_name.c_str())) {}
+
+        std::vector<std::uint8_t>
+        hash(std::vector<std::uint8_t> const& plaintext) {
+            int size = EVP_MD_CTX_size(ctx);
+            std::vector<std::uint8_t> digest;
+            std::fill_n(std::back_inserter(digest), size, 0);
+            unsigned digest_len{};
+
+            EVP_DigestUpdate(ctx, plaintext.data(), plaintext.size());
+            EVP_DigestFinal(ctx, digest.data(), &digest_len);
+
+            if (digest_len != size)
+                throw std::runtime_error("digest size does not match");
+
+            return digest;
+        }
+
+        ~OpenSSLHasher() { EVP_MD_CTX_free(ctx); }
+    };
+
+    /*
     std::vector<std::uint8_t>
-    sha1_encode(std::vector<std::uint8_t> const& buf) {
-        std::vector<std::uint8_t> ret;
-        std::fill_n(std::back_inserter(ret), SHA_DIGEST_LENGTH, 0);
-        SHA1(buf.data(), SHA_DIGEST_LENGTH, ret.data());
-        return ret;
+    sha1_hash(std::vector<std::uint8_t> const& plaintext) {
+        OpenSSLHasher openssl{EVP_get_digestbyname("sha1")};
+        return openssl.hash(plaintext);
+    }
+    */
+
+    template <typename Hasher, typename... Args>
+    auto hash_impl(std::vector<std::uint8_t> const& plaintext, Args... args) {
+        Hasher hasher(args...);
+        return hasher.hash(plaintext);
     }
 
-    auto get_hash_func(Varint const& protocol) {
+    auto hash(Varint const& protocol,
+              std::vector<std::uint8_t> const& plaintext) {
         switch (static_cast<std::uint64_t>(protocol)) {
         case sha1:
-            return sha1_encode;
+            return hash_impl<OpenSSLHasher>(plaintext,
+                                            EVP_get_digestbyname("sha1"));
+        case blake2b_512:
+            return hash_impl<OpenSSLHasher>(plaintext, EVP_blake2b512());
+        case blake2s_256:
+            return hash_impl<OpenSSLHasher>(plaintext, EVP_blake2s256());
+        case md4:
+            return hash_impl<OpenSSLHasher>(plaintext,
+                                            EVP_get_digestbyname("md4"));
+        case md5:
+            return hash_impl<OpenSSLHasher>(plaintext, EVP_md4());
+        case sha2_256:
+            return hash_impl<OpenSSLHasher>(plaintext, EVP_sha256());
+        case sha2_512:
+            return hash_impl<OpenSSLHasher>(plaintext, EVP_sha512());
+        case sha3_224:
+            return hash_impl<OpenSSLHasher>(plaintext,
+                                            EVP_get_digestbyname("sha3-224"));
+        case sha3_256:
+            return hash_impl<OpenSSLHasher>(plaintext,
+                                            EVP_get_digestbyname("sha3-256"));
+        case sha3_384:
+            return hash_impl<OpenSSLHasher>(plaintext,
+                                            EVP_get_digestbyname("sha3-384"));
+        case shake_128:
+            return hash_impl<OpenSSLHasher>(plaintext,
+                                            EVP_get_digestbyname("shake128"));
+        case shake_256:
+            return hash_impl<OpenSSLHasher>(plaintext,
+                                            EVP_get_digestbyname("shake256"));
         }
 
         throw std::invalid_argument("unsupported hash function");
     }
-
 } // namespace
 
 namespace Multiformats {
@@ -42,8 +123,7 @@ namespace Multiformats {
      * @throw std::invalid_argument if function code is not supported */
     Multihash::Multihash(std::vector<std::uint8_t> const& plaintext,
                          Varint const& protocol) {
-        auto hash = get_hash_func(protocol);
-        std::vector<std::uint8_t> digest = hash(plaintext);
+        std::vector<std::uint8_t> digest = hash(protocol, plaintext);
         Varint len{digest.size()};
 
         buf.reserve(protocol.size() + len.size() + digest.size());
@@ -82,5 +162,4 @@ namespace Multiformats {
     }
 
     auto Multihash::end() const { return buf.cend(); }
-
 } // namespace Multiformats
