@@ -65,7 +65,7 @@ class Varint {
         return buf.cend();
     }
 
-    operator std::uint64_t() {
+    operator std::uint64_t() const {
         std::uint64_t ret{};
         return ret;
     }
