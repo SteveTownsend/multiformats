@@ -49,6 +49,7 @@ clang-8.0:
 
 image: alpine
 pages:
+    stage: deploy
     script:
     - apk update && apk add doxygen graphviz
     - doxygen doxygen/Doxyfile
