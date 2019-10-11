@@ -40,9 +40,6 @@ namespace {
                     "OpenSSL doesn't support this hash");
         }
 
-        OpenSSLHasher(std::string const& hash_name)
-            : OpenSSLHasher(EVP_get_digestbyname(hash_name.c_str())) {}
-
         std::vector<std::uint8_t>
         hash(std::vector<std::uint8_t> const& plaintext) {
             int size = EVP_MD_CTX_size(ctx);
@@ -61,14 +58,6 @@ namespace {
 
         ~OpenSSLHasher() { EVP_MD_CTX_free(ctx); }
     };
-
-    /*
-    std::vector<std::uint8_t>
-    sha1_hash(std::vector<std::uint8_t> const& plaintext) {
-        OpenSSLHasher openssl{EVP_get_digestbyname("sha1")};
-        return openssl.hash(plaintext);
-    }
-    */
 
     template <typename Hasher, typename... Args>
     auto hash_impl(std::vector<std::uint8_t> const& plaintext, Args... args) {
