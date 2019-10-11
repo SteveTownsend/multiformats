@@ -24,7 +24,7 @@ namespace {
         return ret;
     }
 
-    constexpr auto get_hash_func(Varint const& protocol) {
+    auto get_hash_func(Varint const& protocol) {
         switch (static_cast<std::uint64_t>(protocol)) {
         case sha1:
             return sha1_encode;
@@ -39,7 +39,7 @@ namespace Multiformats {
     /**
      * @param plaintext binary to hash
      * @param protocol function code of hash
-     * @throw std::invalid_argument if function code is unsupported */
+     * @throw std::invalid_argument if function code is not supported */
     Multihash::Multihash(std::vector<std::uint8_t> const& plaintext,
                          Varint const& protocol) {
         auto hash = get_hash_func(protocol);
