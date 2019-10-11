@@ -67,6 +67,9 @@ class Varint {
 
     operator std::uint64_t() const {
         std::uint64_t ret{};
+        for (auto i = 0; i < size(); ++i)
+            ret |= (buf[i] & 0x7f) << (7 * (size() - i - 1));
+
         return ret;
     }
 
