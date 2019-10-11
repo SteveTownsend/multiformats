@@ -4,7 +4,6 @@
  * @file multibase.hpp
  * @author Matthew Knight
  * @date 2019-10-11
- *
  */
 
 #pragma once

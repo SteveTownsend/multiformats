@@ -13,7 +13,7 @@
 #include <array>
 
 namespace {
-    using namespace Multiformats::Multihash;
+    using namespace Multiformats;
     std::uint64_t const sha1{0x11};
 
     std::vector<std::uint8_t>
@@ -24,76 +24,63 @@ namespace {
         return ret;
     }
 
-    constexpr auto get_encode_func(Varint const& protocol) {
+    constexpr auto get_hash_func(Varint const& protocol) {
         switch (static_cast<std::uint64_t>(protocol)) {
         case sha1:
             return sha1_encode;
         }
 
-        throw std::runtime_error("unsupported hash decode");
-    }
-
-    constexpr auto get_decode_func(Varint const& protocol) {
-        switch (static_cast<std::uint64_t>(protocol)) {}
-
-        throw std::runtime_error("unsupported hash decode");
+        throw std::invalid_argument("unsupported hash function");
     }
 
 } // namespace
 
 namespace Multiformats {
-    class Multihash {
-        std::vector<std::uint8_t> buf;
+    /**
+     * @param plaintext binary to hash
+     * @param protocol function code of hash
+     * @throw std::invalid_argument if function code is unsupported */
+    Multihash::Multihash(std::vector<std::uint8_t> const& plaintext,
+                         Varint const& protocol) {
+        auto hash = get_hash_func(protocol);
+        std::vector<std::uint8_t> digest = hash(plaintext);
+        Varint len{digest.size()};
 
-      public:
-        Multihash(std::vector<std::uint8_t> const& plaintext,
-                  Varint const& protocol);
-
-        Multihash(std::vector<std::uint8_t> const& plaintext,
-                  std::string const& protocol);
-
-        Varint func_code() const;
-        Varint len() const;
-
-        auto begin() const;
-        auto digest() const;
-        auto end() const;
-    };
-
-    std::vector<std::uint8_t> encode(std::vector<std::uint8_t> const& buf,
-                                     Varint const& protocol) {
-
-        auto encode_impl = get_encode_func(protocol);
-        std::vector<std::uint8_t> digest = encode_impl(buf);
-        Varint len = digest.size();
-
-        std::vector<std::uint8_t> ret;
-        ret.reserve(protocol.size() + len.size() + digest.size());
+        buf.reserve(protocol.size() + len.size() + digest.size());
 
         // bundle it all up
-        std::copy(protocol.begin(), protocol.end(), std::back_inserter(ret));
-        std::copy(len.begin(), len.end(), std::back_inserter(ret));
-        std::copy(digest.cbegin(), digest.cend(), std::back_inserter(ret));
-
-        return ret;
+        std::copy(protocol.begin(), protocol.end(), std::back_inserter(buf));
+        std::copy(len.begin(), len.end(), std::back_inserter(buf));
+        std::copy(digest.cbegin(), digest.cend(), std::back_inserter(buf));
     }
 
-    std::vector<std::uint8_t> encode(std::vector<std::uint8_t> const& buf,
-                                     std::string const& protocol) {
-        return encode(buf, Multicodec::table.at(protocol));
+    /**
+     * @param plaintext binary to hash
+     * @param protocol name of hash function
+     * @throw std::out_of_range if protocol isn't in multicodec table */
+    Multihash::Multihash(std::vector<std::uint8_t> const& plaintext,
+                         std::string const& protocol)
+        : Multihash(plaintext, Multicodec::table.at(protocol)) {}
+
+    Varint Multihash::func_code() const {
+        auto [fn, len_it] = make_varint(buf.cbegin(), buf.cend());
+        return fn;
     }
 
-    std::vector<std::uint8_t> get_digest(std::vector<std::uint8_t> const& buf) {
+    Varint Multihash::len() const {
         auto [fn, len_it] = make_varint(buf.cbegin(), buf.cend());
         auto [len, digest_it] = make_varint(len_it, buf.cend());
-
-        if (len > std::distance(digest_it, buf.cend()))
-            throw std::runtime_error("invalid digest size");
-
-        // auto decode_impl = get_decode_func(fn);
-        std::vector<std::uint8_t> digest{digest_it, buf.cend()};
-
-        // return decode_impl(digest);
-        return {};
+        return len;
     }
+
+    auto Multihash::begin() const { return buf.cbegin(); }
+
+    auto Multihash::digest() const {
+        auto [fn, len_it] = make_varint(buf.cbegin(), buf.cend());
+        auto [len, digest_it] = make_varint(len_it, buf.cend());
+        return digest_it;
+    }
+
+    auto Multihash::end() const { return buf.cend(); }
+
 } // namespace Multiformats
