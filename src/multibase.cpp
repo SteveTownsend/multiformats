@@ -958,6 +958,8 @@ namespace {
 } // namespace
 
 namespace Multiformats::Multibase {
+    /** @param protocol The protocol you want to print
+     *  @return The string representation */
     std::string to_string(Protocol protocol) {
         switch (protocol) {
         case Protocol::Identity:
