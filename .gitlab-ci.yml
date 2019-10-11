@@ -47,16 +47,17 @@ clang-8.0:
         CONAN_CLANG_VERSIONS: "8.0"
     <<: *build-template
 
-image: alpine
-pages:
-  stage: deploy
-  script:
-  - apk update && apk add doxygen graphviz
-  - doxygen doxygen/Doxyfile
-  - mv html/ public/
-  artifacts:
-    paths:
-    - public
-  only:
-  - github-pages
+doxygen: alpine
+    image: alpine
+    pages:
+        stage: deploy
+        script:
+        - apk update && apk add doxygen graphviz
+        - doxygen doxygen/Doxyfile
+        - mv html/ public/
+        artifacts:
+            paths:
+            - public
+    only:
+    - github-pages
 
