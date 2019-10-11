@@ -47,7 +47,7 @@ clang-8.0:
         CONAN_CLANG_VERSIONS: "8.0"
     <<: *build-template
 
-doxygen: alpine
+doxygen:
     image: alpine
     pages:
         stage: deploy
