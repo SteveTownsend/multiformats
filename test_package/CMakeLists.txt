@@ -5,6 +5,7 @@ include(${CMAKE_BINARY_DIR}/conanbuildinfo.cmake)
 conan_basic_setup()
 
 add_executable(${PROJECT_NAME}
+    src/varint-test.cpp
     src/multibase-test.cpp
     src/multihash-test.cpp)
 

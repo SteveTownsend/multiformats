@@ -11,6 +11,7 @@
 #include "openssl/evp.h"
 
 #include <array>
+#include <iostream>
 
 namespace {
     using namespace Multiformats;
@@ -67,6 +68,7 @@ namespace {
 
     auto hash(Varint const& protocol,
               std::vector<std::uint8_t> const& plaintext) {
+        std::cout << std::hex << protocol << std::endl;
         switch (static_cast<std::uint64_t>(protocol)) {
         case sha1:
             return hash_impl<OpenSSLHasher>(plaintext,
