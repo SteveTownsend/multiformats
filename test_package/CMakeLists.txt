@@ -9,6 +9,7 @@ add_executable(${PROJECT_NAME}
     src/multibase-test.cpp
     src/multihash-test.cpp)
 
+target_include_directories(${PROJECT_NAME} PRIVATE include)
 target_link_libraries(${PROJECT_NAME} PRIVATE ${CONAN_LIBS})
 target_compile_features(${PROJECT_NAME} PRIVATE cxx_std_17)
 

@@ -68,7 +68,6 @@ namespace {
 
     auto hash(Varint const& protocol,
               std::vector<std::uint8_t> const& plaintext) {
-        std::cout << std::hex << protocol << std::endl;
         switch (static_cast<std::uint64_t>(protocol)) {
         case sha1:
             return hash_impl<OpenSSLHasher>(plaintext,
@@ -133,10 +132,7 @@ namespace Multiformats {
                          std::string const& protocol)
         : Multihash(plaintext, Multicodec::table.at(protocol)) {}
 
-    Varint Multihash::func_code() const {
-        auto [fn, len_it] = make_varint(buf.cbegin(), buf.cend());
-        return fn;
-    }
+    Varint Multihash::func_code() const { return {buf.cbegin(), buf.cend()}; }
 
     Varint Multihash::len() const {
         auto [fn, len_it] = make_varint(buf.cbegin(), buf.cend());
@@ -144,13 +140,17 @@ namespace Multiformats {
         return len;
     }
 
-    auto Multihash::begin() const { return buf.cbegin(); }
+    std::size_t Multihash::size() const {
+        return buf.size();
+    }
 
-    auto Multihash::digest() const {
+    Multihash::ConstIterator Multihash::begin() const { return buf.cbegin(); }
+
+    Multihash::ConstIterator Multihash::digest() const {
         auto [fn, len_it] = make_varint(buf.cbegin(), buf.cend());
         auto [len, digest_it] = make_varint(len_it, buf.cend());
         return digest_it;
     }
 
-    auto Multihash::end() const { return buf.cend(); }
+    Multihash::ConstIterator Multihash::end() const { return buf.cend(); }
 } // namespace Multiformats

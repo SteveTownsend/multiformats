@@ -19,6 +19,7 @@ namespace Multiformats {
     class Multihash {
         std::vector<std::uint8_t> buf;
 
+        using ConstIterator = typename decltype(buf)::const_iterator;
       public:
         /** @brief Hash plaintext using explicit fuction code */
         Multihash(std::vector<std::uint8_t> const& plaintext,
@@ -34,13 +35,16 @@ namespace Multiformats {
         /** @brief Extract digest length from multihash */
         Varint len() const;
 
+        /** @brief Get size of entire multihash */
+        std::size_t size() const;
+
         /** @brief Const iterator to begining of multihash */
-        auto begin() const;
+        ConstIterator begin() const;
 
         /** @brief Const iterator to beginning of digest withing multihash */
-        auto digest() const;
+        ConstIterator digest() const;
 
         /** @brief Const iterator to end of multihash */
-        auto end() const;
+        ConstIterator end() const;
     };
 } // namespace Multiformats

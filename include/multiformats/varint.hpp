@@ -57,10 +57,17 @@ class Varint {
         if (std::all_of(begin, end, [](auto& elem) { return elem & 0x80; }))
             throw std::invalid_argument("parsing error");
 
-        if (std::distance(begin, end) > 9)
+        auto it = begin;
+        while (*it & 0x80 && it != end)
+            ++it;
+
+        // increment past end byte
+        ++it;
+
+        if (std::distance(begin, it) > 9)
             throw std::invalid_argument("number is too large");
 
-        std::copy(begin, end, std::back_inserter(buf));
+        std::copy(begin, it, std::back_inserter(buf));
     }
 
     auto size() const { return buf.size(); }
