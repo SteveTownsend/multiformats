@@ -29,6 +29,7 @@ TEST_P(VarintParamTestFixture, MakeVarint) {
     auto [varint, it] = make_varint(buf.begin(), buf.end());
 
     EXPECT_EQ(varint, value);
+    EXPECT_EQ(varint.size(), buf.size());
     EXPECT_TRUE(std::equal(varint.begin(), varint.end(), buf.cbegin()));
 }
 

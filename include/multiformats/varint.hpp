@@ -28,7 +28,7 @@ class Varint {
                 throw std::runtime_error("invalid value");
 
         do {
-            std::uint8_t value = integral & 0xef;
+            std::uint8_t value = integral & 0x7f;
             integral = integral >> 7;
 
             if (integral)
@@ -49,21 +49,14 @@ class Varint {
               typename = std::enable_if_t<
                   sizeof(typename Iterator::value_type) == 1 &&
                   std::is_integral_v<typename Iterator::value_type>>>
-    Varint(Iterator begin, Iterator end) {
-        std::copy(begin, end, std::back_inserter(buf));
-    }
+    Varint(Iterator begin, Iterator end)
+        : buf(begin, end) {}
 
-    auto size() const {
-        return buf.size();
-    }
+    auto size() const { return buf.size(); }
 
-    auto begin() const {
-        return buf.cbegin();
-    }
+    auto begin() const { return buf.cbegin(); }
 
-    auto end() const {
-        return buf.cend();
-    }
+    auto end() const { return buf.cend(); }
 
     operator std::uint64_t() const {
         std::uint64_t ret{};
@@ -84,7 +77,7 @@ class Varint {
  * @throw std::runtime_error If Varint size is too big, or error in parsing */
 template <typename Iterator>
 std::tuple<Varint, Iterator> make_varint(Iterator begin, Iterator end) {
-    if (std::all_of(begin, end, [] (auto& elem) { return elem & 0x80; }))
+    if (std::all_of(begin, end, [](auto& elem) { return elem & 0x80; }))
         throw std::runtime_error("cannot convert to varint");
 
     std::uint64_t tmp{};
@@ -95,6 +88,9 @@ std::tuple<Varint, Iterator> make_varint(Iterator begin, Iterator end) {
             throw std::runtime_error("varint too large");
 
         tmp |= (*it & 0x7f) << offset;
+
+        if (!(*it & 0x80))
+            break;
     }
 
     return {{tmp}, it};
