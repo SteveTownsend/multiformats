@@ -24,8 +24,12 @@ class Varint {
               typename = std::enable_if_t<std::is_integral_v<Integral>>>
     Varint(Integral integral) {
         if constexpr (std::numeric_limits<Integral>::digits > max_bits)
-            if (integral > max || integral < 0)
-                throw std::runtime_error("invalid value");
+            if (integral > max)
+                throw std::invalid_argument("integral value is too large");
+
+        if (integral < 0)
+            throw std::invalid_argument(
+                "Varint cannot represent negative numbers");
 
         do {
             std::uint8_t value = integral & 0x7f;
@@ -49,8 +53,15 @@ class Varint {
               typename = std::enable_if_t<
                   sizeof(typename Iterator::value_type) == 1 &&
                   std::is_integral_v<typename Iterator::value_type>>>
-    Varint(Iterator begin, Iterator end)
-        : buf(begin, end) {}
+    Varint(Iterator begin, Iterator end) {
+        if (std::all_of(begin, end, [](auto& elem) { return elem & 0x80; }))
+            throw std::invalid_argument("parsing error");
+
+        if (std::distance(begin, end) > 9)
+            throw std::invalid_argument("number is too large");
+
+        std::copy(begin, end, std::back_inserter(buf));
+    }
 
     auto size() const { return buf.size(); }
 
@@ -77,21 +88,6 @@ class Varint {
  * @throw std::runtime_error If Varint size is too big, or error in parsing */
 template <typename Iterator>
 std::tuple<Varint, Iterator> make_varint(Iterator begin, Iterator end) {
-    if (std::all_of(begin, end, [](auto& elem) { return elem & 0x80; }))
-        throw std::runtime_error("cannot convert to varint");
-
-    std::uint64_t tmp{};
-    auto it = begin;
-
-    for (auto offset = 0; it != end; ++it, offset += 7) {
-        if (std::distance(begin, it) > 9)
-            throw std::runtime_error("varint too large");
-
-        tmp |= (*it & 0x7f) << offset;
-
-        if (!(*it & 0x80))
-            break;
-    }
-
-    return {{tmp}, it};
+    Varint ret{begin, end};
+    return {ret, std::next(begin, ret.size())};
 }
