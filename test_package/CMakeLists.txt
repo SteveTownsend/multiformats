@@ -5,9 +5,11 @@ include(${CMAKE_BINARY_DIR}/conanbuildinfo.cmake)
 conan_basic_setup()
 
 add_executable(${PROJECT_NAME}
+    src/util.cpp
     src/varint-test.cpp
     src/multibase-test.cpp
-    src/multihash-test.cpp)
+    src/multihash-test.cpp
+    src/multiaddr-test.cpp)
 
 target_include_directories(${PROJECT_NAME} PRIVATE include)
 target_link_libraries(${PROJECT_NAME} PRIVATE ${CONAN_LIBS})

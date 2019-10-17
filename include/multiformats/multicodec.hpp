@@ -11,18 +11,7 @@
 #include <unordered_map>
 
 namespace Multiformats::Multicodec {
-    enum class Tag {
-        Multihash,
-        Multiaddr,
-        Namespace,
-        Multiformat,
-        Multicodec,
-        Serialization,
-        Ipld,
-        Key,
-        Holochain
-    };
-
+    /** @brief Map of protocols and their specific varint code values */
     std::unordered_map<std::string, Varint> const table {
         { "identity", 0x00 },
         { "ip4", 0x04 },

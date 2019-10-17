@@ -5,7 +5,8 @@ find_package(OpenSSL REQUIRED)
 
 add_library(${PROJECT_NAME} SHARED
     src/multibase.cpp
-    src/multihash.cpp)
+    src/multihash.cpp
+    src/multiaddr.cpp)
 
 target_link_libraries(${PROJECT_NAME} PRIVATE OpenSSL::OpenSSL)
 target_include_directories(${PROJECT_NAME} PUBLIC include)
