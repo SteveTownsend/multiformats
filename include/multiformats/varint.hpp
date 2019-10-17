@@ -20,6 +20,11 @@ class Varint {
     std::vector<std::uint8_t> buf{};
 
   public:
+    /** @brief Construct from an integral type
+     *
+     *  @param integral Some integral value
+     *  @throw std::invalid_argument if the value of the integral is negative or
+     *  greater than 2^63 - 1 */
     template <typename Integral,
               typename = std::enable_if_t<std::is_integral_v<Integral>>>
     Varint(Integral integral) {
@@ -49,6 +54,12 @@ class Varint {
         }
     }
 
+    /** @brief Construct from binary sequence
+     *
+     *  @param begin Iterator to beginning of sequence
+     *  @param end Iterator to end of sequence
+     *  @throw std::invalid_argument If the number is too large, or the sequence
+     *  cannot be parsed */
     template <typename Iterator,
               typename = std::enable_if_t<
                   sizeof(typename Iterator::value_type) == 1 &&
@@ -70,12 +81,19 @@ class Varint {
         std::copy(begin, it, std::back_inserter(buf));
     }
 
+    /** @brief Get size of the varint */
     auto size() const { return buf.size(); }
 
+    /** @brief Get iterator to beginning of underlying buffer */
     auto begin() const { return buf.cbegin(); }
 
+    /** @brief Get iterator to end of underlying buffer */
     auto end() const { return buf.cend(); }
 
+    /** @brief Conversion to 64-bit unsigned.
+     *
+     * The current maximum value of the varint is 2^63 - 1, so a 64-bit uint
+     * will be able to represent any value */
     operator std::uint64_t() const {
         std::uint64_t ret{};
         for (auto i = 0; i < size(); ++i)

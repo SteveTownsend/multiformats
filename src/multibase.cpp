@@ -5,7 +5,6 @@
 // Date: 2019-09-12
 
 #include "multiformats/multibase.hpp"
-#include "multiformats/util.hpp"
 
 #include <openssl/evp.h>
 
@@ -18,8 +17,6 @@
 
 #include <cctype>
 #include <cstring>
-
-#include <iostream>
 
 namespace {
     using namespace Multiformats::Multibase;
