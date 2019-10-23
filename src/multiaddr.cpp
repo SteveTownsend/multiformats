@@ -16,6 +16,8 @@
 #include <cstdint>
 
 namespace {
+    using namespace Multiformats;
+
     std::uint64_t const ip4{4};
     std::uint64_t const ip6{41};
 
@@ -241,6 +243,10 @@ namespace Multiformats {
         }
     }
 
+    std::string Multiaddr::Protocol::to_string() const {
+        return ::to_string(code, value);
+    }
+
     std::string Multiaddr::to_string() const {
         std::string ret;
         for (auto const& address : addr) {
@@ -265,7 +271,7 @@ namespace Multiformats {
 
             if (info_it->byte_length != 0) {
                 ret += '/';
-                ret += ::to_string(address.code, address.value);
+                ret += address.to_string();
             }
         }
 
@@ -301,7 +307,13 @@ namespace Multiformats {
         return ret;
     }
 
+    std::size_t Multiaddr::size() const { return addr.size(); }
+
     Multiaddr::ConstIterator Multiaddr::begin() const { return addr.cbegin(); }
 
     Multiaddr::ConstIterator Multiaddr::end() const { return addr.cend(); }
+
+    Multiaddr::ConstReference Multiaddr::front() const { return addr.front(); }
+
+    Multiaddr::ConstReference Multiaddr::back() const { return addr.back(); }
 }; // namespace Multiformats

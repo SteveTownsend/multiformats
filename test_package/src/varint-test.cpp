@@ -26,7 +26,7 @@ class VarintParamTestFixture
 
 TEST_P(VarintParamTestFixture, ValueToBuf) {
     auto [value, buf] = GetParam();
-    Varint varint{value};
+    Multiformats::Varint varint{value};
 
     EXPECT_EQ(varint.size(), buf.size());
     EXPECT_TRUE(std::equal(varint.begin(), varint.end(), buf.cbegin()));
@@ -34,7 +34,7 @@ TEST_P(VarintParamTestFixture, ValueToBuf) {
 
 TEST_P(VarintParamTestFixture, BufToValue) {
     auto [value, buf] = GetParam();
-    Varint varint{buf.cbegin(), buf.cend()};
+    Multiformats::Varint varint{buf.cbegin(), buf.cend()};
 
     EXPECT_EQ(varint, value);
 }
@@ -43,23 +43,27 @@ INSTANTIATE_TEST_CASE_P(VarintTests, VarintParamTestFixture,
                         ::testing::ValuesIn(parameters));
 
 TEST(VarintTests, LargeInteger) {
-    EXPECT_THROW({ Varint varint{std::numeric_limits<std::uint64_t>::max()}; },
-                 std::invalid_argument);
+    EXPECT_THROW(
+        {
+            Multiformats::Varint varint{
+                std::numeric_limits<std::uint64_t>::max()};
+        },
+        std::invalid_argument);
 }
 
 TEST(VarintTests, NegativeInteger) {
-    EXPECT_THROW({ Varint varint{-1}; }, std::invalid_argument);
+    EXPECT_THROW({ Multiformats::Varint varint{-1}; }, std::invalid_argument);
 }
 
 TEST(VarintTests, LargeBuffer) {
     std::vector<std::uint8_t> const buf{0x80, 0x80, 0x80, 0x80, 0x80,
                                         0x80, 0x80, 0x80, 0x80, 0x01};
-    EXPECT_THROW({ Varint varint(buf.cbegin(), buf.cend()); },
+    EXPECT_THROW({ Multiformats::Varint varint(buf.cbegin(), buf.cend()); },
                  std::invalid_argument);
 }
 
 TEST(VarintTests, InvalidBuffer) {
     std::vector<std::uint8_t> const buf{0x80, 0x80, 0x80, 0x80, 0x80};
-    EXPECT_THROW({ Varint varint(buf.cbegin(), buf.cend()); },
+    EXPECT_THROW({ Multiformats::Varint varint(buf.cbegin(), buf.cend()); },
                  std::invalid_argument);
 }

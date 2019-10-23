@@ -18,6 +18,8 @@
 #include <cctype>
 #include <cstring>
 
+#include <iostream>
+
 namespace {
     using namespace Multiformats::Multibase;
 
@@ -41,11 +43,7 @@ namespace {
         return {std::distance(begin, ret), ret};
     }
 
-    Protocol get_protocol(std::string const& str) {
-        if (str.empty())
-            throw std::runtime_error("can't get protocol for empty string");
-
-        char first = str.front();
+    Protocol get_protocol(char first) {
         switch (first) {
         case '\0':
             return Protocol::Identity;
@@ -119,7 +117,10 @@ namespace {
                               std::regex{"^U[0-9a-zA-Z_=-]*$"}};
 
     Protocol validate(std::string const& str) {
-        auto protocol = get_protocol(str);
+        if (str.empty())
+            throw std::runtime_error("empty string");
+
+        auto protocol = get_protocol(str.front());
         if (patterns.size() < static_cast<std::uint32_t>(protocol))
             throw std::runtime_error("unknown protocol");
 
@@ -691,6 +692,7 @@ namespace {
 
         auto [leading_zeros, it] =
             count_consecutive(input.cbegin(), input.cend(), 0);
+
         std::vector<std::uint8_t> buf;
         std::size_t size = (std::distance(it, input.cend()) * 138 / 100) + 1;
         std::fill_n(std::back_inserter(buf), size, 0);
@@ -705,10 +707,19 @@ namespace {
             }
         }
 
+        // erase any leading zeros
+        auto zero_end = buf.begin();
+        while (*zero_end == 0 && zero_end != buf.end())
+            ++zero_end;
+
+        if (buf.front() == 0)
+            buf.erase(buf.begin(), zero_end);
+
         output.reserve(leading_zeros + buf.size());
         auto inserter = std::back_inserter(output);
         inserter = ' ';
         std::fill_n(inserter, leading_zeros, '1');
+        std::cout << output << std::endl;
         std::transform(buf.cbegin(), buf.cend(), inserter,
                        [&](auto& elem) { return lookup[elem]; });
     }
@@ -960,47 +971,47 @@ namespace Multiformats::Multibase {
     std::string to_string(Protocol protocol) {
         switch (protocol) {
         case Protocol::Identity:
-            return "Identity";
+            return "identity";
         case Protocol::Base2:
-            return "Base2";
+            return "base2";
         case Protocol::Base8:
-            return "Base8";
+            return "base8";
         case Protocol::Base10:
-            return "Base10";
+            return "base10";
         case Protocol::Base16:
-            return "Base16";
+            return "base16";
         case Protocol::Base16Upper:
-            return "Base16Upper";
+            return "base16upper";
         case Protocol::Base32Hex:
-            return "Base32Hex";
+            return "base32hex";
         case Protocol::Base32HexUpper:
-            return "Base32HexUpper";
+            return "base32hexupper";
         case Protocol::Base32HexPad:
-            return "Base32HexPad";
+            return "base32hexpad";
         case Protocol::Base32HexPadUpper:
-            return "Base32HexPadUpper";
+            return "base32hexpadupper";
         case Protocol::Base32:
-            return "Base32";
+            return "base32";
         case Protocol::Base32Upper:
-            return "Base32Upper";
+            return "base32upper";
         case Protocol::Base32Pad:
-            return "Base32Pad";
+            return "base32pad";
         case Protocol::Base32PadUpper:
-            return "Base32PadUpper";
+            return "base32padupper";
         case Protocol::Base32Z:
-            return "Base32Z";
+            return "base32z";
         case Protocol::Base58Flickr:
-            return "Base58Flickr";
+            return "base58flickr";
         case Protocol::Base58Btc:
-            return "Base58Btc";
+            return "base58btc";
         case Protocol::Base64:
-            return "Base64";
+            return "base64";
         case Protocol::Base64Pad:
-            return "Base64Pad";
+            return "base64pad";
         case Protocol::Base64Url:
-            return "Base64Url";
+            return "base64url";
         case Protocol::Base64UrlPad:
-            return "Base64UrlPad";
+            return "base64urlpad";
         }
 
         // if not found, throw

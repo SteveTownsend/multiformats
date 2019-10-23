@@ -4,6 +4,7 @@ project(multiformats)
 find_package(OpenSSL REQUIRED)
 
 add_library(${PROJECT_NAME} SHARED
+    src/cid.cpp
     src/multibase.cpp
     src/multihash.cpp
     src/multiaddr.cpp)
