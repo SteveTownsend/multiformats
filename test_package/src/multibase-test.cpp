@@ -26,6 +26,13 @@ std::vector<std::uint8_t> const foo{0x66, 0x6f, 0x6f};
 std::vector<std::uint8_t> const foob{0x66, 0x6f, 0x6f, 0x62};
 std::vector<std::uint8_t> const fooba{0x66, 0x6f, 0x6f, 0x62, 0x61};
 std::vector<std::uint8_t> const foobar{0x66, 0x6f, 0x6f, 0x62, 0x61, 0x72};
+std::vector<std::uint8_t> const cid_decoded{
+    0x01, 0x55, 0x12, 0x20, 0x6e, 0x6f, 0xf7, 0x95, 0x0a, 0x36,
+    0x18, 0x7a, 0x80, 0x16, 0x13, 0x42, 0x6e, 0x85, 0x8d, 0xce,
+    0x68, 0x6c, 0xd7, 0xd7, 0xe3, 0xc0, 0xfc, 0x42, 0xee, 0x03,
+    0x30, 0x07, 0x2d, 0x24, 0x5c, 0x95};
+std::string const cid_encoded{
+    "zb2rhe5P4gXftAwvA4eXQ5HJwsER2owDyS9sKaQRRVQPn93bA"};
 
 struct Parameter {
     Protocol protocol;
@@ -126,6 +133,7 @@ std::vector<Parameter> const parameters{
     {Protocol::Base32Z, yes_mani, "hxf1zgedpcfzg1ebb"},
     {Protocol::Base58Flickr, yes_mani, "Z7Pznk19XTTzBtx"},
     {Protocol::Base58Btc, yes_mani, "z7paNL19xttacUY"},
+    {Protocol::Base58Btc, cid_decoded, cid_encoded},
 
     {Protocol::Base64, unicode_one, "mw7fDr8O/"},
     {Protocol::Base64, f, "mZg"},
