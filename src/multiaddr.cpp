@@ -10,6 +10,7 @@
 #include "multiformats/varint.hpp"
 
 #include <regex>
+#include <sstream>
 #include <string>
 #include <vector>
 

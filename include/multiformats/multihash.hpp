@@ -10,6 +10,7 @@
 
 #include "multiformats/varint.hpp"
 
+#include <iterator>
 #include <vector>
 
 #include <cstdint>

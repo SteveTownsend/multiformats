@@ -9,6 +9,7 @@
 #pragma once
 
 #include <algorithm>
+#include <iterator>
 #include <stdexcept>
 #include <type_traits>
 #include <vector>
@@ -26,7 +27,8 @@ namespace Multiformats {
          *
          *  The default value of this class is zero
          */
-        Varint() : buf(1, 0) {}
+        Varint()
+            : buf(1, 0) {}
 
         /** @brief Construct from an integral type
          *

@@ -12,6 +12,7 @@
 #include "multiformats/multicodec.hpp"
 
 #include <algorithm>
+#include <array>
 #include <sstream>
 
 #include <iostream>
@@ -21,7 +22,8 @@ namespace Multiformats {
         : Cid(Multibase::decode(encoded)) {}
 
     Cid::Cid(std::vector<std::uint8_t> const& buf) {
-        static constexpr std::array cidv0_preamble{0x12, 0x20};
+        static constexpr std::array<unsigned char, 2> cidv0_preamble{0x12,
+                                                                     0x20};
 
         bool has_preamble = std::equal(cidv0_preamble.cbegin(),
                                        cidv0_preamble.cend(), buf.cbegin());
