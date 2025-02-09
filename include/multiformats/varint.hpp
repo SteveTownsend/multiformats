@@ -10,6 +10,7 @@
 
 #include <algorithm>
 #include <iterator>
+#include <numeric_limits>
 #include <stdexcept>
 #include <type_traits>
 #include <vector>
