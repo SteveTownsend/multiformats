@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.4)
+cmake_minimum_required(VERSION 3.28)
 project(multiformats)
 
 find_package(OpenSSL REQUIRED)
